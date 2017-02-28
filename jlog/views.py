@@ -76,7 +76,8 @@ def log_list(request, offset):
     contact_list, p, contacts, page_range, current_page, show_first, show_end = pages(posts, request)
 
     session_id = request.session.session_key
-    return render(request, 'jlog/log_%s.html' % offset, locals(), context=RequestContext(request))
+    return render(request, 'jlog/log_%s.html' % offset, locals())
+    #return render(request, 'jlog/log_%s.html' % offset, locals(), context=RequestContext(request))
 
 
 """ 函数重复了，什么鬼？？
