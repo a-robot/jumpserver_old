@@ -1,29 +1,22 @@
 # coding: utf-8
-
-
-from argparse import ArgumentParser, FileType
-from contextlib import closing
-from io import open as copen
-from json import dumps
-from math import ceil
 import datetime
 import time
 import re
 import os
-from os.path import basename, dirname, exists, join
-from struct import unpack
-from subprocess import Popen
-from sys import platform, prefix, stderr
-from tempfile import NamedTemporaryFile
+from contextlib import closing
+from io import open as copen
+from json import dumps
+from math import ceil
 
-from jinja2 import FileSystemLoader, Template
+from django.conf import settings
+from jinja2 import FileSystemLoader
 from jinja2.environment import Environment
 
-from jumpserver.api import BASE_DIR, logger
+from jumpserver.api import logger
 from jlog.models import Log
 
 
-DEFAULT_TEMPLATE = join(BASE_DIR, 'templates', 'jlog', 'static.jinja2')
+DEFAULT_TEMPLATE = os.path.join(settings.BASE_DIR, 'templates', 'jlog', 'static.jinja2')
 rz_pat = re.compile(r'\x18B\w+\r\x8a(\x11)?')
 
 
@@ -63,16 +56,16 @@ def scriptToJSON(scriptf, timing=None):
 
 def renderTemplate(script_path, time_file_path, dimensions=(24, 80), templatename=DEFAULT_TEMPLATE):
     with copen(script_path, encoding='utf-8', errors='replace', newline='\r\n') as scriptf:
-    # with open(script_path) as scriptf:
+        # with open(script_path) as scriptf:
         with open(time_file_path) as timef:
             timing = getTiming(timef)
             json = scriptToJSON(scriptf, timing)
 
-    fsl = FileSystemLoader(dirname(templatename), 'utf-8')
+    fsl = FileSystemLoader(os.path.dirname(templatename), 'utf-8')
     e = Environment()
     e.loader = fsl
 
-    templatename = basename(templatename)
+    templatename = os.path.basename(templatename)
     rendered = e.get_template(templatename).render(json=json,
                                                    dimensions=dimensions)
 
@@ -81,7 +74,7 @@ def renderTemplate(script_path, time_file_path, dimensions=(24, 80), templatenam
 
 def renderJSON(script_path, time_file_path):
     with copen(script_path, encoding='utf-8', errors='replace', newline='\r\n') as scriptf:
-    # with open(script_path) as scriptf:
+        # with open(script_path) as scriptf:
         with open(time_file_path) as timef:
             timing = getTiming(timef)
             ret = {}
@@ -93,6 +86,7 @@ def renderJSON(script_path, time_file_path):
                     offset += t[0]
                     ret[str(offset/float(1000))] = dt.decode('utf-8', 'replace')
     return dumps(ret)
+
 
 def kill_invalid_connection():
     unfinished_logs = Log.objects.filter(is_finished=False)
@@ -118,4 +112,3 @@ def kill_invalid_connection():
             log.end_time = now
             log.save()
             logger.warn('kill log %s' % log.log_path)
-

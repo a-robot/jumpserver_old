@@ -1,16 +1,15 @@
 # coding: utf-8
+import time
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-import time
-# from jasset.models import Asset, AssetGroup
 
 
 class UserGroup(models.Model):
     name = models.CharField(max_length=80, unique=True)
     comment = models.CharField(max_length=160, blank=True, null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
@@ -25,11 +24,8 @@ class User(AbstractUser):
     role = models.CharField(max_length=2, choices=USER_ROLE_CHOICES, default='CU')
     group = models.ManyToManyField(UserGroup)
     ssh_key_pwd = models.CharField(max_length=200)
-    # is_active = models.BooleanField(default=True)
-    # last_login = models.DateTimeField(null=True)
-    # date_joined = models.DateTimeField(null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.username
 
 
@@ -42,7 +38,7 @@ class AdminGroup(models.Model):
     user = models.ForeignKey(User)
     group = models.ForeignKey(UserGroup)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s: %s' % (self.user.username, self.group.name)
 
 

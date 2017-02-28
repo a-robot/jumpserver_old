@@ -1,11 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8
 
 import sys
-
-reload(sys)
-sys.setdefaultencoding('utf8')
-
 import os
 import re
 import time
@@ -45,7 +41,7 @@ try:
     import termios
     import tty
 except ImportError:
-    print '\033[1;31m仅支持类Unix系统 Only unix like supported.\033[0m'
+    print('\033[1;31m仅支持类Unix系统 Only unix like supported.\033[0m')
     time.sleep(3)
     sys.exit()
 
@@ -62,7 +58,7 @@ def color_print(msg, color='red', exits=False):
                  'title': '\033[30;42m%s\033[0m',
                  'info': '\033[32m%s\033[0m'}
     msg = color_msg.get(color, 'red') % msg
-    print msg
+    print(msg)
     if exits:
         time.sleep(2)
         sys.exit()
@@ -239,7 +235,7 @@ class Tty(object):
                                 look_for_keys=False)
                     return ssh
                 except (paramiko.ssh_exception.AuthenticationException, paramiko.ssh_exception.SSHException):
-                    logger.warning(u'使用ssh key %s 失败, 尝试只使用密码' % role_key)
+                    logger.warning('使用ssh key %s 失败, 尝试只使用密码' % role_key)
                     pass
 
             ssh.connect(connect_info.get('ip'),
@@ -273,7 +269,7 @@ class SshTty(Tty):
         if 'TIOCGWINSZ' in dir(termios):
             TIOCGWINSZ = termios.TIOCGWINSZ
         else:
-            TIOCGWINSZ = 1074295912L
+            TIOCGWINSZ = 1074295912
         s = struct.pack('HHHH', 0, 0, 0, 0)
         x = fcntl.ioctl(sys.stdout.fileno(), TIOCGWINSZ, s)
         return struct.unpack('HHHH', x)[0:2]
@@ -427,10 +423,10 @@ class Nav(object):
         self.user = user
         self.user_perm = get_group_user_perm(self.user)
         if NAV_SORT_BY == 'ip':
-            self.perm_assets = sorted(self.user_perm.get('asset', []).keys(),
+            self.perm_assets = sorted(list(self.user_perm.get('asset', []).keys()),
                                       key=lambda x: [int(num) for num in x.ip.split('.') if num.isdigit()])
         elif NAV_SORT_BY == 'hostname':
-            self.perm_assets = self.natural_sort_hostname(self.user_perm.get('asset', []).keys())
+            self.perm_assets = self.natural_sort_hostname(list(self.user_perm.get('asset', []).keys()))
         else:
             self.perm_assets = tuple(self.user_perm.get('asset', []))
         self.search_result = self.perm_assets
@@ -460,7 +456,7 @@ class Nav(object):
         9) 输入 \033[32mH/h\033[0m 帮助.
         0) 输入 \033[32mQ/q\033[0m 退出.
         """
-        print textwrap.dedent(msg)
+        print(textwrap.dedent(msg))
 
     def get_asset_group_member(self, str_r):
         gid_pattern = re.compile(r'^g\d+$')
@@ -522,9 +518,9 @@ class Nav(object):
                 asset_info = get_asset_info(asset)
                 # 获取该资产包含的角色
                 role = [str(role.name) for role in self.user_perm.get('asset').get(asset).get('role')]
-                print line % (index, asset.ip, asset_info.get('port'),
-                              self.truncate_str(asset.hostname), str(role).replace("'", ''), asset.comment)
-        print
+                print(line % (index, asset.ip, asset_info.get('port'),
+                              self.truncate_str(asset.hostname), str(role).replace("'", ''), asset.comment))
+        print()
 
     def try_connect(self):
         try:
@@ -533,13 +529,13 @@ class Nav(object):
             if len(roles) == 1:
                 role = roles[0]
             elif len(roles) > 1:
-                print "\033[32m[ID] 系统用户\033[0m"
+                print("\033[32m[ID] 系统用户\033[0m")
                 for index, role in enumerate(roles):
-                    print "[%-2s] %s" % (index, role.name)
-                print
-                print "授权系统用户超过1个，请输入ID, q退出"
+                    print("[%-2s] %s" % (index, role.name))
+                print()
+                print("授权系统用户超过1个，请输入ID, q退出")
                 try:
-                    role_index = raw_input("\033[1;32mID>:\033[0m ").strip()
+                    role_index = input("\033[1;32mID>:\033[0m ").strip()
                     if role_index == 'q':
                         return
                     else:
@@ -551,12 +547,12 @@ class Nav(object):
                 color_print('没有映射用户', 'red')
                 return
 
-            print('Connecting %s ...' % asset.hostname)
+            print(('Connecting %s ...' % asset.hostname))
             ssh_tty = SshTty(login_user, asset, role)
             ssh_tty.connect()
         except (KeyError, ValueError):
             color_print('请输入正确ID', 'red')
-        except ServerError, e:
+        except ServerError as e:
             color_print(e, 'red')
 
     def print_asset_group(self):
@@ -566,26 +562,26 @@ class Nav(object):
         user_asset_group_all = get_group_user_perm(self.user).get('asset_group', [])
         color_print('[%-3s] %-20s %s' % ('ID', '组名', '备注'), 'title')
         for asset_group in user_asset_group_all:
-            print '[%-3s] %-15s %s' % (asset_group.id, asset_group.name, asset_group.comment)
-        print
+            print('[%-3s] %-15s %s' % (asset_group.id, asset_group.name, asset_group.comment))
+        print()
 
     def exec_cmd(self):
         """
         批量执行命令
         """
         while True:
-            roles = self.user_perm.get('role').keys()
+            roles = list(self.user_perm.get('role').keys())
             if len(roles) > 1:  # 授权角色数大于1
                 color_print('[%-2s] %-15s' % ('ID', '系统用户'),  'info')
-                role_check = dict(zip(range(len(roles)), roles))
+                role_check = dict(list(zip(list(range(len(roles))), roles)))
 
-                for i, r in role_check.items():
-                    print '[%-2s] %-15s' % (i, r.name)
-                print
-                print "请输入运行命令所关联系统用户的ID, q退出"
+                for i, r in list(role_check.items()):
+                    print('[%-2s] %-15s' % (i, r.name))
+                print()
+                print("请输入运行命令所关联系统用户的ID, q退出")
 
                 try:
-                    role_id = int(raw_input("\033[1;32mRole>:\033[0m ").strip())
+                    role_id = int(input("\033[1;32mRole>:\033[0m ").strip())
                     if role_id == 'q':
                         break
                 except (IndexError, ValueError):
@@ -598,27 +594,27 @@ class Nav(object):
                 color_print('当前用户未被授予角色，无法执行任何操作，如有疑问请联系管理员。')
                 return
             assets = list(self.user_perm.get('role', {}).get(role).get('asset'))  # 获取该用户，角色授权主机
-            print "授权包含该系统用户的所有主机"
+            print("授权包含该系统用户的所有主机")
             for asset in assets:
-                print ' %s' % asset.hostname
-            print
-            print "请输入主机名或ansible支持的pattern, 多个主机:分隔, q退出"
-            pattern = raw_input("\033[1;32mPattern>:\033[0m ").strip()
+                print(' %s' % asset.hostname)
+            print()
+            print("请输入主机名或ansible支持的pattern, 多个主机:分隔, q退出")
+            pattern = input("\033[1;32mPattern>:\033[0m ").strip()
             if pattern == 'q':
                 break
             else:
                 res = gen_resource({'user': self.user, 'asset': assets, 'role': role}, perm=self.user_perm)
                 runner = MyRunner(res)
                 asset_name_str = ''
-                print "匹配主机:"
+                print("匹配主机:")
                 for inv in runner.inventory.get_hosts(pattern=pattern):
-                    print ' %s' % inv.name
+                    print(' %s' % inv.name)
                     asset_name_str += '%s ' % inv.name
-                print
+                print()
 
                 while True:
-                    print "请输入执行的命令， 按q退出"
-                    command = raw_input("\033[1;32mCmds>:\033[0m ").strip()
+                    print("请输入执行的命令， 按q退出")
+                    command = input("\033[1;32mCmds>:\033[0m ").strip()
                     if command == 'q':
                         break
                     elif not command:
@@ -627,36 +623,36 @@ class Nav(object):
                     runner.run('shell', command, pattern=pattern)
                     ExecLog(host=asset_name_str, user=self.user.username, cmd=command, remote_ip=remote_ip,
                             result=runner.results).save()
-                    for k, v in runner.results.items():
+                    for k, v in list(runner.results.items()):
                         if k == 'ok':
-                            for host, output in v.items():
+                            for host, output in list(v.items()):
                                 color_print("%s => %s" % (host, 'Ok'), 'green')
-                                print output
-                                print
+                                print(output)
+                                print()
                         else:
-                            for host, output in v.items():
+                            for host, output in list(v.items()):
                                 color_print("%s => %s" % (host, k), 'red')
                                 color_print(output, 'red')
-                                print
-                    print "~o~ Task finished ~o~"
-                    print
+                                print()
+                    print("~o~ Task finished ~o~")
+                    print()
 
     def upload(self):
         while True:
             try:
-                print "进入批量上传模式"
-                print "请输入主机名或ansible支持的pattern, 多个主机:分隔 q退出"
-                pattern = raw_input("\033[1;32mPattern>:\033[0m ").strip()
+                print("进入批量上传模式")
+                print("请输入主机名或ansible支持的pattern, 多个主机:分隔 q退出")
+                pattern = input("\033[1;32mPattern>:\033[0m ").strip()
                 if pattern == 'q':
                     break
                 else:
-                    assets = self.user_perm.get('asset').keys()
+                    assets = list(self.user_perm.get('asset').keys())
                     res = gen_resource({'user': self.user, 'asset': assets}, perm=self.user_perm)
                     runner = MyRunner(res)
                     asset_name_str = ''
-                    print "匹配主机:"
+                    print("匹配主机:")
                     for inv in runner.inventory.get_hosts(pattern=pattern):
-                        print inv.name
+                        print(inv.name)
                         asset_name_str += '%s ' % inv.name
 
                     if not asset_name_str:
@@ -681,13 +677,13 @@ class Nav(object):
                     logger.debug('Upload file: %s' % ret)
                     if ret.get('failed'):
                         error = '上传目录: %s \n上传失败: [ %s ] \n上传成功 [ %s ]' % (tmp_dir,
-                                                                             ', '.join(ret.get('failed').keys()),
-                                                                             ', '.join(ret.get('ok').keys()))
+                                                                             ', '.join(list(ret.get('failed').keys())),
+                                                                             ', '.join(list(ret.get('ok').keys())))
                         color_print(error)
                     else:
-                        msg = '上传目录: %s \n传送成功 [ %s ]' % (tmp_dir, ', '.join(ret.get('ok').keys()))
+                        msg = '上传目录: %s \n传送成功 [ %s ]' % (tmp_dir, ', '.join(list(ret.get('ok').keys())))
                         color_print(msg, 'green')
-                    print
+                    print()
 
             except IndexError:
                 pass
@@ -695,29 +691,29 @@ class Nav(object):
     def download(self):
         while True:
             try:
-                print "进入批量下载模式"
-                print "请输入主机名或ansible支持的pattern, 多个主机:分隔,q退出"
-                pattern = raw_input("\033[1;32mPattern>:\033[0m ").strip()
+                print("进入批量下载模式")
+                print("请输入主机名或ansible支持的pattern, 多个主机:分隔,q退出")
+                pattern = input("\033[1;32mPattern>:\033[0m ").strip()
                 if pattern == 'q':
                     break
                 else:
-                    assets = self.user_perm.get('asset').keys()
+                    assets = list(self.user_perm.get('asset').keys())
                     res = gen_resource({'user': self.user, 'asset': assets}, perm=self.user_perm)
                     runner = MyRunner(res)
                     asset_name_str = ''
-                    print "匹配主机:\n"
+                    print("匹配主机:\n")
                     for inv in runner.inventory.get_hosts(pattern=pattern):
                         asset_name_str += '%s ' % inv.name
-                        print ' %s' % inv.name
+                        print(' %s' % inv.name)
                     if not asset_name_str:
                         color_print('没有匹配主机')
                         continue
-                    print
+                    print()
                     while True:
                         tmp_dir = get_tmp_dir()
                         logger.debug('Download tmp dir: %s' % tmp_dir)
-                        print "请输入文件路径(不支持目录)"
-                        file_path = raw_input("\033[1;32mPath>:\033[0m ").strip()
+                        print("请输入文件路径(不支持目录)")
+                        file_path = input("\033[1;32mPath>:\033[0m ").strip()
                         if file_path == 'q':
                             break
 
@@ -739,12 +735,12 @@ class Nav(object):
 
                         if ret.get('failed'):
                             error = '文件名称: %s \n下载失败: [ %s ] \n下载成功 [ %s ]' % \
-                                    ('%s.tar.gz' % tmp_dir_name, ', '.join(ret.get('failed').keys()), ', '.join(ret.get('ok').keys()))
+                                    ('%s.tar.gz' % tmp_dir_name, ', '.join(list(ret.get('failed').keys())), ', '.join(list(ret.get('ok').keys())))
                             color_print(error)
                         else:
-                            msg = '文件名称: %s \n下载成功 [ %s ]' % ('%s.tar.gz' % tmp_dir_name, ', '.join(ret.get('ok').keys()))
+                            msg = '文件名称: %s \n下载成功 [ %s ]' % ('%s.tar.gz' % tmp_dir_name, ', '.join(list(ret.get('ok').keys())))
                             color_print(msg, 'green')
-                        print
+                        print()
             except IndexError:
                 pass
 
@@ -767,7 +763,7 @@ def main():
     try:
         while True:
             try:
-                option = raw_input("\033[1;32mOpt or ID>:\033[0m ").strip()
+                option = input("\033[1;32mOpt or ID>:\033[0m ").strip()
             except EOFError:
                 nav.print_nav()
                 continue
@@ -800,12 +796,12 @@ def main():
             else:
                 nav.search(option)
                 if len(nav.search_result) == 1:
-                    print('Only match Host:  %s ' % nav.search_result[0].hostname)
+                    print(('Only match Host:  %s ' % nav.search_result[0].hostname))
                     nav.try_connect()
                 else:
                     nav.print_search_result()
 
-    except IndexError, e:
+    except IndexError as e:
         color_print(e)
         time.sleep(5)
 

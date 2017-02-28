@@ -1,13 +1,16 @@
-# coding: utf-8
+# coding=utf-8
 
-import re
 import ast
-import time
+import os
 
 from django import template
+from django.conf import settings
+
 from jperm.models import PermPush
-from jumpserver.api import *
 from jperm.perm_api import get_group_user_perm
+from jumpserver.api import get_object
+from juser.models import User, UserGroup
+
 
 register = template.Library()
 
@@ -26,12 +29,12 @@ def get_role(user_id):
     根据用户id获取用户权限
     """
 
-    user_role = {'SU': u'超级管理员', 'GA': u'组管理员', 'CU': u'普通用户'}
+    user_role = {'SU': '超级管理员', 'GA': '组管理员', 'CU': '普通用户'}
     user = get_object(User, id=user_id)
     if user:
-        return user_role.get(str(user.role), u"普通用户")
+        return user_role.get(str(user.role), "普通用户")
     else:
-        return u"普通用户"
+        return "普通用户"
 
 
 @register.filter(name='groups2str')
@@ -71,9 +74,9 @@ def user_asset_group_count(user):
 @register.filter(name='bool2str')
 def bool2str(value):
     if value:
-        return u'是'
+        return '是'
     else:
-        return u'否'
+        return '否'
 
 
 @register.filter(name='members_count')
@@ -200,7 +203,7 @@ def str_to_list(info):
     """
     str to list
     """
-    print ast.literal_eval(info), type(ast.literal_eval(info))
+    print(ast.literal_eval(info), type(ast.literal_eval(info)))
     return ast.literal_eval(info)
 
 
@@ -210,7 +213,7 @@ def str_to_dic(info):
     str to list
     """
     if '{' in info:
-        info_dic = ast.literal_eval(info).iteritems()
+        info_dic = iter(ast.literal_eval(info).items())
     else:
         info_dic = {}
     return info_dic
@@ -221,7 +224,7 @@ def str_to_code(char_str):
     if char_str:
         return char_str
     else:
-        return u'空'
+        return '空'
 
 
 @register.filter(name='ip_str_to_list')
@@ -237,7 +240,7 @@ def key_exist(username):
     """
     ssh key is exist or not
     """
-    if os.path.isfile(os.path.join(KEY_DIR, 'user', username+'.pem')):
+    if os.path.isfile(os.path.join(settings.KEY_DIR, 'user', username+'.pem')):
         return True
     else:
         return False
@@ -286,7 +289,7 @@ def get_disk_info(disk_info):
         disk_size = 0
         if disk_info:
             disk_dic = ast.literal_eval(disk_info)
-            for disk, size in disk_dic.items():
+            for disk, size in list(disk_dic.items()):
                 disk_size += size
             disk_size = int(disk_size)
         else:
@@ -301,6 +304,6 @@ def user_perm_asset_num(user_id):
     user = get_object(User, id=user_id)
     if user:
         user_perm_info = get_group_user_perm(user)
-        return len(user_perm_info.get('asset').keys())
+        return len(list(user_perm_info.get('asset').keys()))
     else:
         return 0

@@ -1,5 +1,5 @@
 # coding: utf-8
-from __future__ import division
+
 import xlrd
 import xlsxwriter
 from django.db.models import AutoField
@@ -81,7 +81,7 @@ def db_asset_update(**kwargs):
 
 def sort_ip_list(ip_list):
     """ ip地址排序 """
-    ip_list.sort(key=lambda s: map(int, s.split('.')))
+    ip_list.sort(key=lambda s: list(map(int, s.split('.'))))
     return ip_list
 
 
@@ -96,8 +96,8 @@ def get_tuple_name(asset_tuple, value):
 
 def get_tuple_diff(asset_tuple, field_name, value):
     """"""
-    old_name = get_tuple_name(asset_tuple, int(value[0])) if value[0] else u''
-    new_name = get_tuple_name(asset_tuple, int(value[1])) if value[1] else u''
+    old_name = get_tuple_name(asset_tuple, int(value[0])) if value[0] else ''
+    new_name = get_tuple_name(asset_tuple, int(value[1])) if value[1] else ''
     alert_info = [field_name, old_name, new_name]
     return alert_info
 
@@ -108,29 +108,29 @@ def asset_diff(before, after):
     """
     alter_dic = {}
     before_dic, after_dic = before, dict(after.iterlists())
-    for k, v in before_dic.items():
+    for k, v in list(before_dic.items()):
         after_dic_values = after_dic.get(k, [])
         if k == 'group':
-            after_dic_value = after_dic_values if len(after_dic_values) > 0 else u''
-            uv = v if v is not None else u''
+            after_dic_value = after_dic_values if len(after_dic_values) > 0 else ''
+            uv = v if v is not None else ''
         else:
-            after_dic_value = after_dic_values[0] if len(after_dic_values) > 0 else u''
-            uv = unicode(v) if v is not None else u''
+            after_dic_value = after_dic_values[0] if len(after_dic_values) > 0 else ''
+            uv = str(v) if v is not None else ''
         if uv != after_dic_value:
             alter_dic.update({k: [uv, after_dic_value]})
 
-    for k, v in alter_dic.items():
-        if v == [None, u'']:
+    for k, v in list(alter_dic.items()):
+        if v == [None, '']:
             alter_dic.pop(k)
 
     return alter_dic
 
 
 def asset_diff_one(before, after):
-    print before.__dict__, after.__dict__
+    print(before.__dict__, after.__dict__)
     fields = Asset._meta.get_all_field_names()
     for field in fields:
-        print before.field, after.field
+        print(before.field, after.field)
 
 
 def db_asset_alert(asset, username, alert_dic):
@@ -139,13 +139,13 @@ def db_asset_alert(asset, username, alert_dic):
     """
     alert_list = []
     asset_tuple_dic = {'status': ASSET_STATUS, 'env': ASSET_ENV, 'asset_type': ASSET_TYPE}
-    for field, value in alert_dic.iteritems():
+    for field, value in alert_dic.items():
         field_name = Asset._meta.get_field_by_name(field)[0].verbose_name
         if field == 'idc':
-            old = IDC.objects.filter(id=value[0]) if value[0] else u''
-            new = IDC.objects.filter(id=value[1]) if value[1] else u''
-            old_name = old[0].name if old else u''
-            new_name = new[0].name if new else u''
+            old = IDC.objects.filter(id=value[0]) if value[0] else ''
+            new = IDC.objects.filter(id=value[1]) if value[1] else ''
+            old_name = old[0].name if old else ''
+            new_name = new[0].name if new else ''
             alert_info = [field_name, old_name, new_name]
 
         elif field in ['status', 'env', 'asset_type']:
@@ -165,27 +165,27 @@ def db_asset_alert(asset, username, alert_dic):
                 alert_info = [field_name, ','.join(old), ','.join(new)]
 
         elif field == 'use_default_auth':
-            if unicode(value[0]) == 'True' and unicode(value[1]) == 'on' or \
-                                    unicode(value[0]) == 'False' and unicode(value[1]) == '':
+            if str(value[0]) == 'True' and str(value[1]) == 'on' or \
+                                    str(value[0]) == 'False' and str(value[1]) == '':
                 continue
             else:
                 name = asset.username
-                alert_info = [field_name, u'默认', name] if unicode(value[0]) == 'True' else \
-                    [field_name, name, u'默认']
+                alert_info = [field_name, '默认', name] if str(value[0]) == 'True' else \
+                    [field_name, name, '默认']
 
         elif field in ['username', 'password']:
             continue
 
         elif field == 'is_active':
-            if unicode(value[0]) == 'True' and unicode(value[1]) == '1' or \
-                                    unicode(value[0]) == 'False' and unicode(value[1]) == '0':
+            if str(value[0]) == 'True' and str(value[1]) == '1' or \
+                                    str(value[0]) == 'False' and str(value[1]) == '0':
                 continue
             else:
-                alert_info = [u'是否激活', u'激活', u'禁用'] if unicode(value[0]) == 'True' else \
-                    [u'是否激活', u'禁用', u'激活']
+                alert_info = ['是否激活', '激活', '禁用'] if str(value[0]) == 'True' else \
+                    ['是否激活', '禁用', '激活']
 
         else:
-            alert_info = [field_name, unicode(value[0]), unicode(value[1])]
+            alert_info = [field_name, str(value[0]), str(value[1])]
 
         if 'alert_info' in dir():
             alert_list.append(alert_info)
@@ -199,13 +199,13 @@ def write_excel(asset_all):
     now = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M')
     file_name = 'cmdb_excel_' + now + '.xlsx'
     workbook = xlsxwriter.Workbook('static/files/excels/%s' % file_name)
-    worksheet = workbook.add_worksheet(u'CMDB数据')
+    worksheet = workbook.add_worksheet('CMDB数据')
     worksheet.set_first_sheet()
     worksheet.set_column('A:E', 15)
     worksheet.set_column('F:F', 40)
     worksheet.set_column('G:Z', 15)
-    title = [u'主机名', u'IP', u'IDC', u'所属主机组', u'操作系统', u'CPU', u'内存(G)', u'硬盘(G)',
-             u'机柜位置', u'MAC', u'远控IP', u'机器状态', u'备注']
+    title = ['主机名', 'IP', 'IDC', '所属主机组', '操作系统', 'CPU', '内存(G)', '硬盘(G)',
+             '机柜位置', 'MAC', '远控IP', '机器状态', '备注']
     for asset in asset_all:
         group_list = []
         for p in asset.group.all():
@@ -214,10 +214,10 @@ def write_excel(asset_all):
         disk = get_disk_info(asset.disk)
         group_all = '/'.join(group_list)
         status = asset.get_status_display()
-        idc_name = asset.idc.name if asset.idc else u''
-        system_type = asset.system_type if asset.system_type else u''
-        system_version = asset.system_version if asset.system_version else u''
-        system_os = unicode(system_type) + unicode(system_version)
+        idc_name = asset.idc.name if asset.idc else ''
+        system_type = asset.system_type if asset.system_type else ''
+        system_version = asset.system_version if asset.system_version else ''
+        system_os = str(system_type) + str(system_version)
 
         alter_dic = [asset.hostname, asset.ip, idc_name, group_all, system_os, asset.cpu, asset.memory,
                      disk, asset.cabinet, asset.mac, asset.remote_ip, status, asset.comment]
@@ -254,17 +254,17 @@ def copy_model_instance(obj):
     initial = dict([(f.name, getattr(obj, f.name))
                     for f in obj._meta.fields
                     if not isinstance(f, AutoField) and \
-                    not f in obj._meta.parents.values()])
+                    not f in list(obj._meta.parents.values())])
     return obj.__class__(**initial)
 
 
 def ansible_record(asset, ansible_dic, username):
     alert_dic = {}
     asset_dic = asset.__dict__
-    for field, value in ansible_dic.items():
+    for field, value in list(ansible_dic.items()):
         old = asset_dic.get(field)
         new = ansible_dic.get(field)
-        if unicode(old) != unicode(new):
+        if str(old) != str(new):
             setattr(asset, field, value)
             asset.save()
             alert_dic[field] = [old, new]
@@ -278,7 +278,7 @@ def excel_to_db(excel_file):
     """
     try:
         data = xlrd.open_workbook(filename=None, file_contents=excel_file.read())
-    except Exception, e:
+    except Exception as e:
         return False
     else:
         table = data.sheets()[0]
@@ -291,8 +291,8 @@ def excel_to_db(excel_file):
                 if get_object(Asset, hostname=hostname):
                     continue
                 if isinstance(password, int) or isinstance(password, float):
-                    password = unicode(int(password))
-                use_default_auth = 1 if use_default_auth == u'默认' else 0
+                    password = str(int(password))
+                use_default_auth = 1 if use_default_auth == '默认' else 0
                 password_encode = CRYPTOR.encrypt(password) if password else ''
                 if hostname:
                     asset = Asset(ip=ip,
@@ -318,7 +318,7 @@ def get_ansible_asset_info(asset_ip, setup_info):
     disk_need = {}
     disk_all = setup_info.get("ansible_devices")
     if disk_all:
-        for disk_name, disk_info in disk_all.iteritems():
+        for disk_name, disk_info in disk_all.items():
             if disk_name.startswith('sd') or disk_name.startswith('hd') or disk_name.startswith('vd') or disk_name.startswith('xvd'):
                 disk_size = disk_info.get("size", '')
                 if 'M' in disk_size:
@@ -353,7 +353,7 @@ def get_ansible_asset_info(asset_ip, setup_info):
     else:
         system_version = setup_info.get("ansible_distribution_version")
         cpu_cores = setup_info.get("ansible_processor_vcpus")
-    cpu = cpu_type + ' * ' + unicode(cpu_cores)
+    cpu = cpu_type + ' * ' + str(cpu_cores)
     system_arch = setup_info.get("ansible_architecture")
     # asset_type = setup_info.get("ansible_system")
     sn = setup_info.get("ansible_product_serial")
@@ -370,13 +370,13 @@ def asset_ansible_update(obj_list, name=''):
         try:
             setup_info = ansible_asset_info['contacted'][asset.hostname]['ansible_facts']
             logger.debug("setup_info: %s" % setup_info)
-        except KeyError, e:
+        except KeyError as e:
             logger.error("获取setup_info失败: %s" % e)
             continue
         else:
             try:
                 asset_info = get_ansible_asset_info(asset.ip, setup_info)
-                print asset_info
+                print(asset_info)
                 other_ip, mac, cpu, memory, disk, sn, system_type, system_version, brand, system_arch = asset_info
                 asset_dic = {"other_ip": other_ip,
                              "mac": mac,
@@ -397,7 +397,7 @@ def asset_ansible_update(obj_list, name=''):
 
 
 def asset_ansible_update_all():
-    name = u'定时更新'
+    name = '定时更新'
     asset_all = Asset.objects.all()
     asset_ansible_update(asset_all, name)
 

@@ -1,11 +1,15 @@
-# coding: utf-8
+# coding=utf-8
 
-from Crypto.PublicKey import RSA
+import os
+
 from subprocess import call
 
-from juser.models import AdminGroup
-from jumpserver.api import *
-from jumpserver.settings import BASE_DIR, EMAIL_HOST_USER as MAIL_FROM
+from django.conf import settings
+from django.core.mail import send_mail
+from Crypto.PublicKey import RSA
+
+from juser.models import AdminGroup, User, UserGroup
+from jumpserver.api import get_object, logger, bash, chown, mkdir
 
 
 def group_add_user(group, user_id=None, username=None):
@@ -121,8 +125,7 @@ def db_del_user(username):
         user.delete()
 
 
-def gen_ssh_key(username, password='',
-                key_dir=os.path.join(KEY_DIR, 'user'),
+def gen_ssh_key(username, password='', key_dir=os.path.join(settings.KEY_DIR, 'user'),
                 authorized_keys=True, home="/home", length=2048):
     """
     generate a user ssh key in a property dir
@@ -142,7 +145,7 @@ def gen_ssh_key(username, password='',
         with open(private_key_file+'.pub') as pub_f:
             with open(authorized_key_file, 'w') as auth_f:
                 auth_f.write(pub_f.read())
-        os.chmod(authorized_key_file, 0600)
+        os.chmod(authorized_key_file, 0o600)
         chown(authorized_key_file, username)
 
 
@@ -151,7 +154,7 @@ def server_add_user(username, ssh_key_pwd=''):
     add a system user in jumpserver
     在jumpserver服务器上添加一个用户
     """
-    bash("useradd -s '%s' '%s'" % (os.path.join(BASE_DIR, 'init.sh'), username))
+    bash("useradd -s '%s' '%s'" % (os.path.join(settings.BASE_DIR, 'init.sh'), username))
     gen_ssh_key(username, ssh_key_pwd)
 
 
@@ -160,9 +163,9 @@ def user_add_mail(user, kwargs):
     add user send mail
     发送用户添加邮件
     """
-    user_role = {'SU': u'超级管理员', 'GA': u'组管理员', 'CU': u'普通用户'}
-    mail_title = u'恭喜你的跳板机用户 %s 添加成功 Jumpserver' % user.name
-    mail_msg = u"""
+    user_role = {'SU': '超级管理员', 'GA': '组管理员', 'CU': '普通用户'}
+    mail_title = '恭喜你的跳板机用户 %s 添加成功 Jumpserver' % user.name
+    mail_msg = """
     Hi, %s
         您的用户名： %s
         您的权限： %s
@@ -170,9 +173,9 @@ def user_add_mail(user, kwargs):
         您的ssh密钥文件密码： %s
         密钥下载地址： %s/juser/key/down/?uuid=%s
         说明： 请登陆跳板机后台下载密钥, 然后使用密钥登陆跳板机！
-    """ % (user.name, user.username, user_role.get(user.role, u'普通用户'),
-           kwargs.get('password'), kwargs.get('ssh_key_pwd'), URL, user.uuid)
-    send_mail(mail_title, mail_msg, MAIL_FROM, [user.email], fail_silently=False)
+    """ % (user.name, user.username, user_role.get(user.role, '普通用户'),
+           kwargs.get('password'), kwargs.get('ssh_key_pwd'), settings.URL, user.uuid)
+    send_mail(mail_title, mail_msg, settings.EMAIL_HOST_USER, [user.email], fail_silently=False)
 
 
 def server_del_user(username):
@@ -181,22 +184,21 @@ def server_del_user(username):
     删除系统上的某用户
     """
     bash('userdel -r -f %s' % username)
-    logger.debug('rm -f %s/%s_*.pem' % (os.path.join(KEY_DIR, 'user'), username))
-    bash('rm -f %s/%s_*.pem' % (os.path.join(KEY_DIR, 'user'), username))
-    bash('rm -f %s/%s.pem*' % (os.path.join(KEY_DIR, 'user'), username))
+    logger.debug('rm -f %s/%s_*.pem' % (os.path.join(settings.KEY_DIR, 'user'), username))
+    bash('rm -f %s/%s_*.pem' % (os.path.join(settings.KEY_DIR, 'user'), username))
+    bash('rm -f %s/%s.pem*' % (os.path.join(settings.KEY_DIR, 'user'), username))
 
 
 def get_display_msg(user, password='', ssh_key_pwd='', send_mail_need=False):
     if send_mail_need:
-        msg = u'添加用户 %s 成功！ 用户密码已发送到 %s 邮箱！' % (user.name, user.email)
+        msg = '添加用户 %s 成功！ 用户密码已发送到 %s 邮箱！' % (user.name, user.email)
     else:
-        msg = u"""
+        msg = """
         跳板机地址： %s <br />
         用户名：%s <br />
         密码：%s <br />
         密钥密码：%s <br />
         密钥下载url: %s/juser/key/down/?uuid=%s <br />
         该账号密码可以登陆web和跳板机。
-        """ % (URL, user.username, password, ssh_key_pwd, URL, user.uuid)
+        """ % (settings.URL, user.username, password, ssh_key_pwd, settings.URL, user.uuid)
     return msg
-

@@ -1,23 +1,29 @@
 # coding:utf-8
-from django.db.models import Q
-from django.template import RequestContext
-from django.shortcuts import render_to_response, render
-from jumpserver.api import *
-from jperm.perm_api import user_have_perm
-from django.http import HttpResponseNotFound
-from jlog.log_api import renderJSON
-
-from jlog.models import Log, ExecLog, FileLog, TermLog
-from jumpserver.settings import LOG_DIR
-import zipfile
+import datetime
 import json
+import os
 import pyte
+import re
+import time
+import uuid
+import zipfile
+
+from django.conf import settings
+from django.db.models import Q
+from django.http import HttpResponseNotFound, HttpResponse
+from django.shortcuts import render
+from django.template import RequestContext
+
+from jlog.log_api import renderJSON
+from jlog.models import Log, ExecLog, FileLog, TermLog, TtyLog
+from juser.models import User
+from jumpserver.api import require_role, pages, my_render, get_object, mkdir
 
 
 @require_role('admin')
 def log_list(request, offset):
     """ 显示日志 """
-    header_title, path1 = u'审计', u'操作审计'
+    header_title, path1 = '审计', '操作审计'
     date_seven_day = request.GET.get('start', '')
     date_now_str = request.GET.get('end', '')
     username_list = request.GET.getlist('username', [])
@@ -70,12 +76,14 @@ def log_list(request, offset):
     contact_list, p, contacts, page_range, current_page, show_first, show_end = pages(posts, request)
 
     session_id = request.session.session_key
-    return render_to_response('jlog/log_%s.html' % offset, locals(), context_instance=RequestContext(request))
+    return render(request, 'jlog/log_%s.html' % offset, locals(), context=RequestContext(request))
 
 
+""" 函数重复了，什么鬼？？
 @require_role('admin')
 def log_detail(request):
     return my_render('jlog/exec_detail.html', locals(), request)
+"""
 
 
 @require_role('admin')
@@ -90,9 +98,9 @@ def log_kill(request):
         except OSError:
             pass
         Log.objects.filter(pid=pid).update(is_finished=1, end_time=datetime.datetime.now())
-        return render_to_response('jlog/log_offline.html', locals(), context_instance=RequestContext(request))
+        return render(request, 'jlog/log_offline.html', locals(), context=RequestContext(request))
     else:
-        return HttpResponseNotFound(u'没有此进程!')
+        return HttpResponseNotFound('没有此进程!')
 
 
 @require_role('admin')
@@ -268,7 +276,7 @@ class TermLogRecorder(object):
         # print ">>>>>>>>>>>>>>>>"
         self.log[str(time.time() - self.recoderStartTime)] = msg.decode('utf-8', 'replace')
 
-    def save(self, path=LOG_DIR):
+    def save(self, path=settings.LOG_DIR):
         date = datetime.datetime.now().strftime('%Y%m%d')
         filename = str(uuid.uuid4())
         self.filename = filename

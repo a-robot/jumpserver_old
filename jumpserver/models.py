@@ -12,7 +12,7 @@ class Setting(models.Model):
     field5 = models.CharField(max_length=100, null=True, blank=True)
 
     class Meta:
-        db_table = u'setting'
+        db_table = 'setting'
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name

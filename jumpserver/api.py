@@ -1,31 +1,32 @@
 # coding: utf-8
 
-import os, sys, time, re
-from Crypto.Cipher import AES
+import os
 import crypt
 import pwd
-from binascii import b2a_hex, a2b_hex
-import hashlib
 import datetime
+import hashlib
+import json
+import logging
 import random
 import subprocess
 import uuid
-import json
-import logging
+from binascii import b2a_hex, a2b_hex
+from Crypto.Cipher import AES
 
-from settings import *
-from django.core.paginator import Paginator, EmptyPage, InvalidPage
-from django.http import HttpResponse, Http404
-from django.template import RequestContext
-from juser.models import User, UserGroup
-from jlog.models import Log, TtyLog
-from jasset.models import Asset, AssetGroup
-from jperm.models import PermRule, PermRole
-from jumpserver.models import Setting
-from django.http import HttpResponseRedirect
-from django.shortcuts import render_to_response
 from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
+from django.conf import settings
+from django.core.paginator import Paginator, EmptyPage, InvalidPage
+from django.http import HttpResponse, Http404
+from django.http import HttpResponseRedirect
+from django.shortcuts import render
+from django.template import RequestContext
+
+from jasset.models import Asset, AssetGroup
+from jlog.models import Log, TtyLog
+from jperm.models import PermRule, PermRole
+from jumpserver.models import Setting
+from juser.models import User, UserGroup
 
 
 def set_log(level, filename='jumpserver.log'):
@@ -33,10 +34,10 @@ def set_log(level, filename='jumpserver.log'):
     return a log file object
     根据提示设置log打印
     """
-    log_file = os.path.join(LOG_DIR, filename)
+    log_file = os.path.join(settings.LOG_DIR, filename)
     if not os.path.isfile(log_file):
         os.mknod(log_file)
-        os.chmod(log_file, 0777)
+        os.chmod(log_file, 0o777)
     log_level_total = {'debug': logging.DEBUG, 'info': logging.INFO, 'warning': logging.WARN, 'error': logging.ERROR,
                        'critical': logging.CRITICAL}
     logger_f = logging.getLogger('jumpserver')
@@ -89,16 +90,16 @@ def get_role_key(user, role):
     :param role:
     :return: self key path
     """
-    user_role_key_dir = os.path.join(KEY_DIR, 'user')
+    user_role_key_dir = os.path.join(settings.KEY_DIR, 'user')
     user_role_key_path = os.path.join(user_role_key_dir, '%s_%s.pem' % (user.username, role.name))
     mkdir(user_role_key_dir, mode=777)
     if not os.path.isfile(user_role_key_path):
         with open(os.path.join(role.key_path, 'id_rsa')) as fk:
             with open(user_role_key_path, 'w') as fu:
                 fu.write(fk.read())
-        logger.debug(u"创建新的系统用户key %s, Owner: %s" % (user_role_key_path, user.username))
+        logger.debug("创建新的系统用户key %s, Owner: %s" % (user_role_key_path, user.username))
         chown(user_role_key_path, user.username)
-        os.chmod(user_role_key_path, 0600)
+        os.chmod(user_role_key_path, 0o600)
     return user_role_key_path
 
 
@@ -121,7 +122,7 @@ def page_list_return(total, current=1):
     min_page = current - 2 if current - 4 > 0 else 1
     max_page = min_page + 4 if min_page + 4 < total else total
 
-    return range(min_page, max_page + 1)
+    return list(range(min_page, max_page + 1))
 
 
 def pages(post_objects, request):
@@ -247,7 +248,7 @@ def get_object(model, **kwargs):
     use this function for query
     使用改封装函数查询数据库
     """
-    for value in kwargs.values():
+    for value in list(kwargs.values()):
         if not value:
             return None
 
@@ -443,7 +444,7 @@ def verify(request, user_group=None, user=None, asset_group=None, asset=None, ed
         asset_ids = []
         for a in dept_assets:
             asset_ids.append(str(a.id))
-        print asset, asset_ids
+        print(asset, asset_ids)
         if not set(asset).issubset(set(asset_ids)):
             return False
 
@@ -470,16 +471,16 @@ def mkdir(dir_name, username='', mode=755):
 
 
 def http_success(request, msg):
-    return render_to_response('success.html', locals())
+    return render(request, 'success.html', locals())
 
 
 def http_error(request, emg):
     message = emg
-    return render_to_response('error.html', locals())
+    return render(request, 'error.html', locals())
 
 
 def my_render(template, data, request):
-    return render_to_response(template, data, context_instance=RequestContext(request))
+    return render(request, template, context=data)
 
 
 def get_tmp_dir():
@@ -506,5 +507,5 @@ def get_mac_address():
     return mac
 
 
-CRYPTOR = PyCrypt(KEY)
-logger = set_log(LOG_LEVEL)
+CRYPTOR = PyCrypt(settings.KEY)
+logger = set_log(settings.LOG_LEVEL)

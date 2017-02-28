@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static mytags %}
+{% block content %}
+{% include 'nav_cat_bar.html' %}
+
+{% block self_head_css_js %}
+  <link href="{% static 'css/fancytree/skin-win8/ui.fancytree.min.css' %}" rel="stylesheet">
+  <link href="{% static 'css/jproject/list.css' %}" rel="stylesheet">
+{% endblock %}
+
+<div ng-app="myApp" class="wrapper wrapper-content animated fadeInRight">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="ibox float-e-margins" id="all">
+        <div class="ibox-title">
+          <h5> 主机详细信息列表</h5>
+          <div class="ibox-tools">
+            <a class="collapse-link">
+              <i class="fa fa-chevron-up"></i>
+            </a>
+            <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+              <i class="fa fa-wrench"></i>
+            </a>
+            <a class="close-link">
+              <i class="fa fa-times"></i>
+            </a>
+          </div>
+        </div>
+        <div class="ibox-content" ng-controller="AssertDetailCtrl">
+          <div id="tree"></div>
+          <div class="host-detail">
+            <div class="host-detail-line">
+              <div class="host-detail-item">
+                <label>内网IP：</label>
+                <span>{$ selected_asset.ip $}</span>
+              </div>
+              <div class="host-detail-item">
+                <label>外网IP：</label>
+                <span>{$ selected_asset.remote_ip $}</span>
+              </div>
+            </div>
+            <div class="host-detail-line">
+              <div class="host-detail-item">
+                <label>系统类型：</label>
+                <span>{$ selected_asset.system_type $} {$ selected_asset.system_version $}</span>
+              </div>
+              <div class="host-detail-item">
+                <label>系统架构：</label>
+                <span>{$ selected_asset.system_arch $}</span>
+              </div>
+            </div>
+            <div class="host-detail-line">
+              <div class="host-detail-item">
+                <label>CPU：</label>
+                <span>{$ selected_asset.cpu $}</span>
+              </div>
+              <div class="host-detail-item">
+                <label>内存：</label>
+                <span>{$ selected_asset.memory $}</span>
+              </div>
+            </div>
+            <div class="host-detail-line">
+              <div class="host-detail-item">
+                <label>硬盘：</label>
+                <span>{$ selected_asset.disk $}</span>
+              </div>
+              <div class="host-detail-item">
+                <label>带宽：</label>
+                <span></span>
+              </div>
+            </div>
+            <div class="host-detail-line connect-btn-line">
+              <button class="btn btn-warning" ng-click="connect_click(selected_asset.id, selected_asset.hostname)">连接</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block self_footer_js %}
+<script src="{% static 'js/jquery-ui-1.10.4.min.js' %}"></script>
+<script src="{% static 'js/fancytree/jquery.fancytree-all.min.js' %}"></script>
+<script src={% static 'js/angular-1.6.1.min.js' %}></script>
+<script src="{% static 'js/jproject/list.js' %}"> </script>
+{% endblock %}

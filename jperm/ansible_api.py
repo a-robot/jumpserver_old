@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-
+# coding=utf-8
 
 from tempfile import NamedTemporaryFile
 import os.path
@@ -7,9 +6,10 @@ import os.path
 from ansible.inventory.group import Group
 from ansible.inventory.host import Host
 from ansible.inventory import Inventory
-from ansible.runner import Runner
-from ansible.playbook import PlayBook
-from ansible import callbacks
+
+from ansible.executor.task_queue_manager import TaskQueueManager
+from ansible.playbook.play import Play
+
 from ansible import utils
 import ansible.constants as C
 from passlib.hash import sha512_crypt
@@ -25,7 +25,7 @@ ANSIBLE_DIR = os.path.join(API_DIR, 'playbooks')
 C.HOST_KEY_CHECKING = False
 
 
-class AnsibleError(StandardError):
+class AnsibleError(Exception):
     """
     the base AnsibleError which contains error(required),
     data(optional) and message(optional).
@@ -77,7 +77,7 @@ class MyInventory(Inventory):
 
         # if group variables exists, add them to group
         if groupvars:
-            for key, value in groupvars.iteritems():
+            for key, value in groupvars.items():
                 my_group.set_variable(key, value)
 
         # add hosts to group
@@ -97,7 +97,7 @@ class MyInventory(Inventory):
             my_host.set_variable('ansible_ssh_private_key_file', ssh_key)
 
             # set other variables 
-            for key, value in host.iteritems():
+            for key, value in host.items():
                 if key not in ["hostname", "port", "username", "password"]:
                     my_host.set_variable(key, value)
             # add to group
@@ -112,7 +112,7 @@ class MyInventory(Inventory):
         if isinstance(self.resource, list):
             self.my_add_group(self.resource, 'default_group')
         elif isinstance(self.resource, dict):
-            for groupname, hosts_and_vars in self.resource.iteritems():
+            for groupname, hosts_and_vars in self.resource.items():
                 self.my_add_group(hosts_and_vars.get("hosts"), groupname, hosts_and_vars.get("vars"))
 
 
@@ -131,18 +131,21 @@ class MyRunner(MyInventory):
         module_name: ansible module_name
         module_args: ansible module args
         """
-        hoc = Runner(module_name=module_name,
-                     module_args=module_args,
-                     timeout=timeout,
-                     inventory=self.inventory,
-                     pattern=pattern,
-                     forks=forks,
-                     become=become,
-                     become_method=become_method,
-                     become_user=become_user,
-                     become_pass=become_pass,
-                     transport=transport
-                     )
+
+        hoc = Runner(
+            module_name=module_name,
+            module_args=module_args,
+            timeout=timeout,
+            inventory=self.inventory,
+            pattern=pattern,
+            forks=forks,
+            become=become,
+            become_method=become_method,
+            become_user=become_user,
+            become_pass=become_pass,
+            transport=transport
+        )
+
         self.results_raw = hoc.run()
         logger.debug(self.results_raw)
         return self.results_raw
@@ -156,11 +159,11 @@ class MyRunner(MyInventory):
         dark = self.results_raw.get('dark')
         contacted = self.results_raw.get('contacted')
         if dark:
-            for host, info in dark.items():
+            for host, info in list(dark.items()):
                 result['failed'][host] = info.get('msg')
 
         if contacted:
-            for host, info in contacted.items():
+            for host, info in list(contacted.items()):
                 if info.get('invocation').get('module_name') in ['raw', 'shell', 'command', 'script']:
                     if info.get('rc') == 0:
                         result['ok'][host] = info.get('stdout') + info.get('stderr')
@@ -193,24 +196,18 @@ class Command(MyInventory):
         if module_name not in ["raw", "command", "shell"]:
             raise CommandValueError("module_name",
                                     "module_name must be of the 'raw, command, shell'")
-        hoc = Runner(module_name=module_name,
-                     module_args=command,
-                     timeout=timeout,
-                     inventory=self.inventory,
-                     pattern=pattern,
-                     forks=forks,
-                     )
-        self.results_raw = hoc.run()
+
+        self.results_raw = tqm.run()
 
     @property
     def result(self):
         result = {}
-        for k, v in self.results_raw.items():
+        for k, v in list(self.results_raw.items()):
             if k == 'dark':
-                for host, info in v.items():
+                for host, info in list(v.items()):
                     result[host] = {'dark': info.get('msg')}
             elif k == 'contacted':
-                for host, info in v.items():
+                for host, info in list(v.items()):
                     result[host] = {}
                     if info.get('stdout'):
                         result[host]['stdout'] = info.get('stdout')
@@ -236,7 +233,7 @@ class Command(MyInventory):
         """
         result = {}
         all = self.results_raw.get("contacted")
-        for key, value in all.iteritems():
+        for key, value in all.items():
             result[key] = {
                     "start": value.get("start"),
                     "end"  : value.get("end"),
@@ -250,7 +247,7 @@ class Command(MyInventory):
         """
         result = {}
         all = self.results_raw.get("contacted")
-        for key, value in all.iteritems():
+        for key, value in all.items():
             result[key] = value.get("stdout")
         return result
 
@@ -261,7 +258,7 @@ class Command(MyInventory):
         """
         result = {}
         all = self.results_raw.get("contacted")
-        for key, value in all.iteritems():
+        for key, value in all.items():
             if value.get("stderr") or value.get("warnings"):
                 result[key] = {
                     "stderr": value.get("stderr"),
@@ -300,7 +297,7 @@ class MyTask(MyRunner):
         """
         ret_failed = []
         ret_success = []
-        for user, key_path in user_info.iteritems():
+        for user, key_path in user_info.items():
             ret = self.push_key(user, key_path)
             if ret.get("status") == "ok":
                 ret_success.append(ret)
@@ -347,7 +344,7 @@ class MyTask(MyRunner):
         """
         ret_success = []
         ret_failed = []
-        for user, password in user_info.iteritems():
+        for user, password in user_info.items():
             ret = self.add_user(user, password)
             if ret.get("status") == "ok":
                 ret_success.append(ret)
@@ -391,7 +388,7 @@ class MyTask(MyRunner):
             sudo_alias[sudo.name] = sudo.commands
 
         for role in role_list:
-            sudo_user[role.name] = ','.join(sudo_alias.keys())
+            sudo_user[role.name] = ','.join(list(sudo_alias.keys()))
 
         sudo_j2 = get_template('jperm/role_sudo.j2')
         sudo_content = sudo_j2.render(Context({"sudo_alias": sudo_alias, "sudo_user": sudo_user}))
@@ -421,114 +418,8 @@ class MyTask(MyRunner):
         return self.results
 
 
-class CustomAggregateStats(callbacks.AggregateStats):
-    """                                                                             
-    Holds stats about per-host activity during playbook runs.                       
-    """
-    def __init__(self):
-        super(CustomAggregateStats, self).__init__()
-        self.results = []
-
-    def compute(self, runner_results, setup=False, poll=False,
-                ignore_errors=False):
-        """                                                                         
-        Walk through all results and increment stats.                               
-        """
-        super(CustomAggregateStats, self).compute(runner_results, setup, poll,
-                                              ignore_errors)
-
-        self.results.append(runner_results)
-
-    def summarize(self, host):
-        """                                                                         
-        Return information about a particular host                                  
-        """
-        summarized_info = super(CustomAggregateStats, self).summarize(host)
-
-        # Adding the info I need                                                    
-        summarized_info['result'] = self.results
-
-        return summarized_info
-
-
-class MyPlaybook(MyInventory):
-    """
-    this is my playbook object for execute playbook.
-    """
-    def __init__(self, *args, **kwargs):
-        super(MyPlaybook, self).__init__(*args, **kwargs)
-
-    def run(self, playbook_relational_path, extra_vars=None):
-        """
-        run ansible playbook,
-        only surport relational path.
-        """
-        stats = callbacks.AggregateStats()
-        playbook_cb = callbacks.PlaybookCallbacks(verbose=utils.VERBOSITY)
-        runner_cb = callbacks.PlaybookRunnerCallbacks(stats, verbose=utils.VERBOSITY)
-        playbook_path = os.path.join(ANSIBLE_DIR, playbook_relational_path)
-
-        pb = PlayBook(
-            playbook=playbook_path,
-            stats=stats,
-            callbacks=playbook_cb,
-            runner_callbacks=runner_cb,
-            inventory=self.inventory,
-            extra_vars=extra_vars,
-            check=False)
-
-        self.results = pb.run()
-
-    @property
-    def raw_results(self):
-        """
-        get the raw results after playbook run.
-        """
-        return self.results
-
-
-class App(MyPlaybook):
-    """
-    this is a app object for inclue the common playbook.
-    """
-    def __init__(self, *args, **kwargs):
-        super(App, self).__init__(*args, **kwargs)
-
-
 if __name__ == "__main__":
-
-#   resource =  {
-#                "group1": {
-#                    "hosts": [{"hostname": "127.0.0.1", "port": "22", "username": "root", "password": "xxx"},],
-#                    "vars" : {"var1": "value1", "var2": "value2"},
-#                          },
-#                }
-
-    resource = [{"hostname": "127.0.0.1", "port": "22", "username": "yumaojun", "password": "yusky0902",
-                 # "ansible_become": "yes",
-                 # "ansible_become_method": "sudo",
-                 # # "ansible_become_user": "root",
-                 # "ansible_become_pass": "yusky0902",
-                 }]
-    cmd.run('ls',pattern='*')
-    print cmd.results_raw
-
-    # resource = [{"hostname": "192.168.10.148", "port": "22", "username": "root", "password": "xxx"}]
-    # task = Tasks(resource)
-    # print task.get_host_info()
-
-#   playbook = MyPlaybook(resource)
-#   playbook.run('test.yml')
-#   print playbook.raw_results
-
-#    task = Tasks(resource)
-    # print task.add_user('test', 'mypass')
-#   print task.del_user('test')
-#   print task.push_key('root', '/root/.ssh/id_rsa.pub')
-#   print task.del_key('root', '/root/.ssh/id_rsa.pub')
-
-#   task = Tasks(resource)
-#   print task.add_init_users()
-#   print task.del_init_users()
-
-
+    resource = [{"hostname": "127.0.0.1", "port": "22", "username": "yumaojun", "password": "yusky0902", }]
+    cmd = Command(resource)
+    cmd.run('ls', pattern='*')
+    print(cmd.results_raw)

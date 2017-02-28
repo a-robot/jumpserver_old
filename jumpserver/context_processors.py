@@ -22,4 +22,3 @@ def name_proc(request):
                 }
 
     return info_dic
-

@@ -1,18 +1,27 @@
 # coding: utf-8
-# Author: Guanghongwei
-# Email: ibuler@qq.com
-
-# import random
-# from Crypto.PublicKey import RSA
-import uuid
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
-from juser.user_api import *
-from jperm.perm_api import get_group_user_perm
+import datetime
+import os
 import re
+import time
+import uuid
 
-MAIL_FROM = EMAIL_HOST_USER
+from django.core.mail import send_mail
+from django.core.urlresolvers import reverse
+from django.conf import settings
+from django.db.models import Q
+from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.shortcuts import get_object_or_404, render
+
+from jlog.models import Log
+from jperm.perm_api import get_group_user_perm
+from jumpserver.api import require_role, ServerError, PyCrypt, logger, defend_attack, http_success, \
+        http_error, is_role_request, my_render, pages
+from juser.models import User, UserGroup
+from juser.user_api import db_add_group, get_object, db_add_user, server_add_user, \
+        db_del_user, server_del_user, user_add_mail, get_display_msg, db_update_user, gen_ssh_key
+
+
+MAIL_FROM = settings.EMAIL_HOST_USER
 
 
 @require_role(role='super')
@@ -33,19 +42,19 @@ def group_add(request):
 
         try:
             if not group_name:
-                error = u'组名 不能为空'
+                error = '组名 不能为空'
                 raise ServerError(error)
 
             if UserGroup.objects.filter(name=group_name):
-                error = u'组名已存在'
+                error = '组名已存在'
                 raise ServerError(error)
             db_add_group(name=group_name, users_id=users_selected, comment=comment)
         except ServerError:
             pass
         except TypeError:
-            error = u'添加小组失败'
+            error = '添加小组失败'
         else:
-            msg = u'添加组 %s 成功' % group_name
+            msg = '添加组 %s 成功' % group_name
 
     return my_render('juser/group_add.html', locals(), request)
 
@@ -110,7 +119,7 @@ def group_edit(request):
                 raise ServerError('组名不能为空')
 
             if len(UserGroup.objects.filter(name=group_name)) > 1:
-                raise ServerError(u'%s 用户组已存在' % group_name)
+                raise ServerError('%s 用户组已存在' % group_name)
             # add user group
             user_group = get_object_or_404(UserGroup, id=group_id)
             user_group.user_set.clear()
@@ -121,7 +130,7 @@ def group_edit(request):
             user_group.name = group_name
             user_group.comment = comment
             user_group.save()
-        except ServerError, e:
+        except ServerError as e:
             error = e
 
         if not error:
@@ -139,11 +148,11 @@ def user_add(request):
     error = ''
     msg = ''
     header_title, path1, path2 = '添加用户', '用户管理', '添加用户'
-    user_role = {'SU': u'超级管理员', 'CU': u'普通用户'}
+    user_role = {'SU': '超级管理员', 'CU': '普通用户'}
     group_all = UserGroup.objects.all()
 
     if request.method == 'POST':
-        username = request.POST.get('username', '')      
+        username = request.POST.get('username', '')
         password = PyCrypt.gen_rand_pass(16)
         name = request.POST.get('name', '')
         email = request.POST.get('email', '')
@@ -158,24 +167,24 @@ def user_add(request):
 
         try:
             if '' in [username, password, ssh_key_pwd, name, role]:
-                error = u'带*内容不能为空'
+                error = '带*内容不能为空'
                 raise ServerError
-                
+
             check_user_is_exist = User.objects.filter(username=username)
             if check_user_is_exist:
-                error = u'用户 %s 已存在' % username
+                error = '用户 %s 已存在' % username
                 raise ServerError
-            
+
             if username in ['root']:
-                error = u'用户不能为root'
+                error = '用户不能为root'
                 raise ServerError
 
         except ServerError:
             pass
         else:
             try:
-                if not re.match(r"^\w+$",username):
-                    error = u'用户名不合法'
+                if not re.match(r"^\w+$", username):
+                    error = '用户名不合法'
                     raise ServerError(error)
                 user = db_add_user(username=username, name=name,
                                    password=password,
@@ -191,15 +200,15 @@ def user_add(request):
                     for user_group_id in groups:
                         user_groups.extend(UserGroup.objects.filter(id=user_group_id))
 
-            except IndexError, e:
-                error = u'添加用户 %s 失败 %s ' % (username, e)
+            except IndexError as e:
+                error = '添加用户 %s 失败 %s ' % (username, e)
                 try:
                     db_del_user(username)
                     server_del_user(username)
                 except Exception:
                     pass
             else:
-                if MAIL_ENABLE and send_mail_need:
+                if settings.MAIL_ENABLE and send_mail_need:
                     user_add_mail(user, kwargs=locals())
                 msg = get_display_msg(user, password=password, ssh_key_pwd=ssh_key_pwd, send_mail_need=send_mail_need)
     return my_render('juser/user_add.html', locals(), request)
@@ -207,7 +216,7 @@ def user_add(request):
 
 @require_role(role='super')
 def user_list(request):
-    user_role = {'SU': u'超级管理员', 'GA': u'组管理员', 'CU': u'普通用户'}
+    user_role = {'SU': '超级管理员', 'GA': '组管理员', 'CU': '普通用户'}
     header_title, path1, path2 = '查看用户', '用户管理', '用户列表'
     keyword = request.GET.get('keyword', '')
     gid = request.GET.get('gid', '')
@@ -262,7 +271,7 @@ def user_del(request):
     for user_id in user_id_list:
         user = get_object(User, id=user_id)
         if user and user.username != 'admin':
-            logger.debug(u"删除用户 %s " % user.username)
+            logger.debug("删除用户 %s " % user.username)
             server_del_user(user.username)
             user.delete()
     return HttpResponse('删除成功')
@@ -272,15 +281,15 @@ def user_del(request):
 def send_mail_retry(request):
     uuid_r = request.GET.get('uuid', '1')
     user = get_object(User, uuid=uuid_r)
-    msg = u"""
+    msg = """
     跳板机地址： %s
     用户名：%s
     重设密码：%s/juser/password/forget/
     请登录web点击个人信息页面重新生成ssh密钥
-    """ % (URL, user.username, URL)
+    """ % (settings.URL, user.username, settings.URL)
 
     try:
-        send_mail(u'邮件重发', msg, MAIL_FROM, [user.email], fail_silently=False)
+        send_mail('邮件重发', msg, MAIL_FROM, [user.email], fail_silently=False)
     except IndexError:
         return Http404
     return HttpResponse('发送成功')
@@ -296,18 +305,18 @@ def forget_password(request):
         user = get_object(User, username=username, email=email, name=name)
         if user:
             timestamp = int(time.time())
-            hash_encode = PyCrypt.md5_crypt(str(user.uuid) + str(timestamp) + KEY)
-            msg = u"""
+            hash_encode = PyCrypt.md5_crypt(str(user.uuid) + str(timestamp) + settings.KEY)
+            msg = """
             Hi %s, 请点击下面链接重设密码！
             %s/juser/password/reset/?uuid=%s&timestamp=%s&hash=%s
-            """ % (user.name, URL, user.uuid, timestamp, hash_encode)
+            """ % (user.name, settings.URL, user.uuid, timestamp, hash_encode)
             send_mail('忘记跳板机密码', msg, MAIL_FROM, [email], fail_silently=False)
-            msg = u'请登陆邮箱，点击邮件重设密码'
+            msg = '请登陆邮箱，点击邮件重设密码'
             return http_success(request, msg)
         else:
-            error = u'用户不存在或邮件地址错误'
+            error = '用户不存在或邮件地址错误'
 
-    return render_to_response('juser/forget_password.html', locals())
+    return render(request, 'juser/forget_password.html', locals())
 
 
 @defend_attack
@@ -317,16 +326,16 @@ def reset_password(request):
     hash_encode = request.GET.get('hash', '')
     action = '/juser/password/reset/?uuid=%s&timestamp=%s&hash=%s' % (uuid_r, timestamp, hash_encode)
 
-    if hash_encode == PyCrypt.md5_crypt(uuid_r + timestamp + KEY):
+    if hash_encode == PyCrypt.md5_crypt(uuid_r + timestamp + settings.KEY):
         if int(time.time()) - int(timestamp) > 600:
-            return http_error(request, u'链接已超时')
+            return http_error(request, '链接已超时')
     else:
         return HttpResponse('hash校验失败')
 
     if request.method == 'POST':
         password = request.POST.get('password')
         password_confirm = request.POST.get('password_confirm')
-        print password, password_confirm
+        print(password, password_confirm)
         if password != password_confirm:
             return HttpResponse('密码不匹配')
         else:
@@ -334,14 +343,14 @@ def reset_password(request):
             if user:
                 user.set_password(password)
                 user.save()
-                return http_success(request, u'密码重设成功')
+                return http_success(request, '密码重设成功')
             else:
                 return HttpResponse('用户不存在')
 
     else:
-        return render_to_response('juser/reset_password.html', locals())
+        return render(request, 'juser/reset_password.html', locals())
 
-    return http_error(request, u'错误请求')
+    return http_error(request, '错误请求')
 
 
 @require_role(role='super')
@@ -352,7 +361,7 @@ def user_edit(request):
         if not user_id:
             return HttpResponseRedirect(reverse('index'))
 
-        user_role = {'SU': u'超级管理员', 'CU': u'普通用户'}
+        user_role = {'SU': '超级管理员', 'CU': '普通用户'}
         user = get_object(User, id=user_id)
         group_all = UserGroup.objects.all()
         if user:
@@ -370,7 +379,7 @@ def user_edit(request):
         extra = request.POST.getlist('extra', [])
         is_active = True if '0' in extra else False
         email_need = True if '1' in extra else False
-        user_role = {'SU': u'超级管理员', 'GA': u'部门管理员', 'CU': u'普通用户'}
+        user_role = {'SU': '超级管理员', 'GA': '部门管理员', 'CU': '普通用户'}
 
         if user_id:
             user = get_object(User, id=user_id)
@@ -387,7 +396,7 @@ def user_edit(request):
                        is_active=is_active)
 
         if email_need:
-            msg = u"""
+            msg = """
             Hi %s:
                 您的信息已修改，请登录跳板机查看详细信息
                 地址：%s
@@ -395,7 +404,7 @@ def user_edit(request):
                 密码：%s (如果密码为None代表密码为原密码)
                 权限：：%s
 
-            """ % (user.name, URL, user.username, password, user_role.get(role_post, u''))
+            """ % (user.name, settings.URL, user.username, password, user_role.get(role_post, ''))
             send_mail('您的信息已修改', msg, MAIL_FROM, [email], fail_silently=False)
 
         return HttpResponseRedirect(reverse('user_list'))
@@ -462,8 +471,8 @@ def down_key(request):
         user = get_object(User, uuid=uuid_r)
         if user:
             username = user.username
-            private_key_file = os.path.join(KEY_DIR, 'user', username+'.pem')
-            print private_key_file
+            private_key_file = os.path.join(settings.KEY_DIR, 'user', username+'.pem')
+            print(private_key_file)
             if os.path.isfile(private_key_file):
                 f = open(private_key_file)
                 data = f.read()
@@ -474,4 +483,3 @@ def down_key(request):
                     os.unlink(private_key_file)
                 return response
     return HttpResponse('No Key File. Contact Admin.')
-

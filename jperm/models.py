@@ -19,7 +19,7 @@ class PermSudo(models.Model):
     commands = models.TextField()
     comment = models.CharField(max_length=100, null=True, blank=True, default='')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
@@ -31,7 +31,7 @@ class PermRole(models.Model):
     date_added = models.DateTimeField(auto_now=True)
     sudo = models.ManyToManyField(PermSudo, related_name='perm_role')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
@@ -45,7 +45,7 @@ class PermRule(models.Model):
     user_group = models.ManyToManyField(UserGroup, related_name='perm_rule')
     role = models.ManyToManyField(PermRole, related_name='perm_rule')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 

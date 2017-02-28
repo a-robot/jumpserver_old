@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding=utf-8
 
 import os.path
 import shutil
@@ -54,10 +54,10 @@ def gen_keys(key="", key_path_dir=""):
         with open(key_file) as f:
             try:
                 key = RSAKey.from_private_key(f)
-            except SSHException, e:
+            except SSHException as e:
                 shutil.rmtree(key_path_dir, ignore_errors=True)
                 raise SSHException(e)
-    os.chmod(private_key, 0644)
+    os.chmod(private_key, 0o644)
 
     with open(public_key, 'w') as content_file:
         for data in [key.get_name(),
@@ -75,6 +75,7 @@ def trans_all(str):
         return str
 
 if __name__ == "__main__":
-    print gen_keys()
+    print(gen_keys())
+
 
 

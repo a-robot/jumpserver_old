@@ -1,3 +1,9 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import UserGroup, User, AdminGroup, Document
+
+
+admin.site.register(UserGroup)
+admin.site.register(User)
+admin.site.register(AdminGroup)
+admin.site.register(Document)

@@ -1,25 +1,27 @@
-# coding: utf-8
-
-from __future__ import division
+# coding=utf-8
+import datetime
+import os
 import uuid
-import urllib
+import zipfile
+import urllib.request
+import urllib.parse
+import urllib.error
 
-from django.db.models import Count
-from django.shortcuts import render_to_response
-from django.template import RequestContext
-from django.http import HttpResponseNotFound
-from django.http import HttpResponse
-# from jperm.models import Apply
-import paramiko
-from jumpserver.api import *
-from jumpserver.models import Setting
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
+from django.db.models import Count
+from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import render, reverse
+from django.template import RequestContext
+
+from jasset.models import Asset
 from jlog.models import Log, FileLog
 from jperm.perm_api import get_group_user_perm, gen_resource
-from jasset.models import Asset, IDC
 from jperm.ansible_api import MyRunner
-import zipfile
+from jumpserver.api import require_role, is_role_request, defend_attack, get_object, ServerError, mkdir, CRYPTOR, my_render, get_tmp_dir, logger
+from jumpserver.models import Setting
+from juser.models import User
 
 
 def getDaysByNum(num):
@@ -79,7 +81,6 @@ def get_count_by_date(date_li, item):
 
 @require_role(role='user')
 def index_cu(request):
-    username = request.user.username
     return HttpResponseRedirect(reverse('user_detail'))
 
 
@@ -147,32 +148,45 @@ def index(request):
         login_10 = Log.objects.order_by('-start_time')[:10]
         login_more_10 = Log.objects.order_by('-start_time')[10:21]
 
-    return render_to_response('index.html', locals(), context_instance=RequestContext(request))
+        context = {
+            'hosts': hosts,
+            'online_user': online_user,
+            'week_users': week_users,
+            'online_host': online_host,
+            'week_hosts': week_hosts,
+            'user_top_five': user_top_five,
+            'color': color,
+            'login_more_10': login_more_10,
+            'login_10': login_10,
+            'color': color,
+        }
+
+    return render(request, 'index.html', context=context)
 
 
 def skin_config(request):
-    return render_to_response('skin_config.html')
+    return render(request, 'skin_config.html')
 
 
 def is_latest():
     node = uuid.getnode()
     jsn = uuid.UUID(int=node).hex[-12:]
-    with open(os.path.join(BASE_DIR, 'version')) as f:
+    with open(os.path.join(settings.BASE_DIR, 'version')) as f:
         current_version = f.read()
-    lastest_version = urllib.urlopen('http://www.jumpserver.org/lastest_version.html?jsn=%s' % jsn).read().strip()
+    lastest_version = urllib.request.urlopen('http://www.jumpserver.org/lastest_version.html?jsn=%s' % jsn).read().strip()
 
     if current_version != lastest_version:
         pass
 
 
 @defend_attack
-def Login(request):
+def jmp_login(request):
     """登录界面"""
     error = ''
     if request.user.is_authenticated():
         return HttpResponseRedirect(reverse('index'))
     if request.method == 'GET':
-        return render_to_response('login.html')
+        return render(request, 'login.html')
     else:
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -181,15 +195,6 @@ def Login(request):
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    # c = {}
-                    # c.update(csrf(request))
-                    # request.session['csrf_token'] = str(c.get('csrf_token'))
-        # user_filter = User.objects.filter(username=username)
-        # if user_filter:
-        #     user = user_filter[0]
-        #     if PyCrypt.md5_crypt(password) == user.password:
-        #         request.session['user_id'] = user.id
-        #         user_filter.update(last_login=datetime.datetime.now())
                     if user.role == 'SU':
                         request.session['role_id'] = 2
                     elif user.role == 'GA':
@@ -197,20 +202,17 @@ def Login(request):
                     else:
                         request.session['role_id'] = 0
                     return HttpResponseRedirect(request.session.get('pre_url', '/'))
-                # response.set_cookie('username', username, expires=604800)
-                # response.set_cookie('seed', PyCrypt.md5_crypt(password), expires=604800)
-                # return response
                 else:
                     error = '用户未激活'
             else:
                 error = '用户名或密码错误'
         else:
             error = '用户名或密码错误'
-    return render_to_response('login.html', {'error': error})
+    return render(request, 'login.html', {'error': error})
 
 
 @require_role('user')
-def Logout(request):
+def jmp_logout(request):
     logout(request)
     return HttpResponseRedirect(reverse('index'))
 
@@ -230,19 +232,19 @@ def setting(request):
                 private_key = request.POST.get('key', '')
 
                 if len(password) > 30:
-                    raise ServerError(u'秘密长度不能超过30位!')
+                    raise ServerError('秘密长度不能超过30位!')
 
                 if '' in [username, port]:
-                    return ServerError(u'所填内容不能为空, 且密码和私钥填一个')
+                    return ServerError('所填内容不能为空, 且密码和私钥填一个')
                 else:
-                    private_key_dir = os.path.join(BASE_DIR, 'keys', 'default')
+                    private_key_dir = os.path.join(settings.BASE_DIR, 'keys', 'default')
                     private_key_path = os.path.join(private_key_dir, 'admin_user.pem')
                     mkdir(private_key_dir)
 
                     if private_key:
                         with open(private_key_path, 'w') as f:
                                 f.write(private_key)
-                        os.chmod(private_key_path, 0600)
+                        os.chmod(private_key_path, 0o600)
 
                     if setting_default:
                         if password:
@@ -261,13 +263,13 @@ def setting(request):
                         msg = "设置成功"
         except ServerError as e:
             error = e.message
-    return my_render('setting.html', locals(), request)
+    return render(request, 'setting.html')
 
 
 @login_required(login_url='/login')
 def upload(request):
     user = request.user
-    assets = get_group_user_perm(user).get('asset').keys()
+    assets = list(get_group_user_perm(user).get('asset').keys())
     asset_select = []
     if request.method == 'POST':
         remote_ip = request.META.get('REMOTE_ADDR')
@@ -291,19 +293,17 @@ def upload(request):
 
         res = gen_resource({'user': user, 'asset': asset_select})
         runner = MyRunner(res)
-        runner.run('copy', module_args='src=%s dest=%s directory_mode'
-                                        % (upload_dir, '/tmp'), pattern='*')
+        runner.run('copy', module_args='src=%s dest=%s directory_mode' % (upload_dir, '/tmp'), pattern='*')
         ret = runner.results
         logger.debug(ret)
         FileLog(user=request.user.username, host=' '.join([asset.hostname for asset in asset_select]),
                 filename=' '.join([f.name for f in upload_files]), type='upload', remote_ip=remote_ip,
                 result=ret).save()
         if ret.get('failed'):
-            error = u'上传目录: %s <br> 上传失败: [ %s ] <br>上传成功 [ %s ]' % (upload_dir,
-                                                                             ', '.join(ret.get('failed').keys()),
-                                                                             ', '.join(ret.get('ok').keys()))
+            error = '上传目录: %s <br> 上传失败: [ %s ] <br>上传成功 [ %s ]' % (upload_dir, ', '.join(list(ret.get('failed').keys())),
+                                                                                ', '.join(list(ret.get('ok').keys())))
             return HttpResponse(error, status=500)
-        msg = u'上传目录: %s <br> 传送成功 [ %s ]' % (upload_dir, ', '.join(ret.get('ok').keys()))
+        msg = '上传目录: %s <br> 传送成功 [ %s ]' % (upload_dir, ', '.join(list(ret.get('ok').keys())))
         return HttpResponse(msg)
     return my_render('upload.html', locals(), request)
 
@@ -311,7 +311,7 @@ def upload(request):
 @login_required(login_url='/login')
 def download(request):
     user = request.user
-    assets = get_group_user_perm(user).get('asset').keys()
+    assets = list(get_group_user_perm(user).get('asset').keys())
     asset_select = []
     if request.method == 'POST':
         remote_ip = request.META.get('REMOTE_ADDR')
@@ -324,7 +324,7 @@ def download(request):
 
         if not set(asset_select).issubset(set(assets)):
             illegal_asset = set(asset_select).issubset(set(assets))
-            return HttpResponse(u'没有权限的服务器 %s' % ','.join([asset.hostname for asset in illegal_asset]))
+            return HttpResponse('没有权限的服务器 %s' % ','.join([asset.hostname for asset in illegal_asset]))
 
         res = gen_resource({'user': user, 'asset': asset_select})
         runner = MyRunner(res)
@@ -347,7 +347,7 @@ def download(request):
         response['Content-Disposition'] = 'attachment; filename=%s.zip' % tmp_dir_name
         return response
 
-    return render_to_response('download.html', locals(), context_instance=RequestContext(request))
+    return render(request, 'download.html')
 
 
 @login_required(login_url='/login')
@@ -365,6 +365,4 @@ def web_terminal(request):
     asset = get_object(Asset, id=asset_id)
     if asset:
         hostname = asset.hostname
-    return render_to_response('jlog/web_terminal.html', locals())
-
-
+    return render(request, 'jlog/web_terminal.html', locals())

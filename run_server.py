@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8
 
 import time
@@ -28,13 +28,10 @@ import select
 from connect import Tty, User, Asset, PermRole, logger, get_object, gen_resource
 from connect import TtyLog, Log, Session, user_have_perm, get_group_user_perm, MyRunner, ExecLog
 
-try:
-    import simplejson as json
-except ImportError:
-    import json
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'jumpserver.settings'
 from jumpserver.settings import IP, PORT
+
 
 define("port", default=PORT, help="run on the given port", type=int)
 define("host", default=IP, help="run port on given host", type=str)
@@ -130,7 +127,7 @@ def file_monitor(path='.', client=None):
             if notifier.check_events():
                 notifier.read_events()
         except KeyboardInterrupt:
-            print "keyboard Interrupt."
+            print("keyboard Interrupt.")
             notifier.stop()
             break
 
@@ -239,7 +236,7 @@ class ExecHandler(tornado.websocket.WebSocketHandler):
         logger.debug('Web执行命令: 请求系统用户 %s' % role_name)
         self.role = get_object(PermRole, name=role_name)
         self.perm = get_group_user_perm(self.user)
-        roles = self.perm.get('role').keys()
+        roles = list(self.perm.get('role').keys())
         if self.role not in roles:
             self.write_message('No perm that role %s' % role_name)
             self.close()
@@ -277,8 +274,8 @@ class ExecHandler(tornado.websocket.WebSocketHandler):
         ExecLog(host=self.asset_name_str, cmd=self.command, user=self.user.username,
                 remote_ip=self.remote_ip, result=self.runner.results).save()
         newline_pattern = re.compile(r'\n')
-        for k, v in self.runner.results.items():
-            for host, output in v.items():
+        for k, v in list(self.runner.results.items()):
+            for host, output in list(v.items()):
                 output = newline_pattern.sub('<br />', output)
                 if k == 'ok':
                     header = "<span style='color: green'>[ %s => %s]</span>\n" % (host, 'Ok')
@@ -392,7 +389,7 @@ class WebTerminalHandler(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         logger.debug('Websocket: Close request')
-        print self.termlog.CMD
+        print(self.termlog.CMD)
         self.termlog.save()
         if self in WebTerminalHandler.clients:
             WebTerminalHandler.clients.remove(self)
@@ -440,24 +437,6 @@ class WebTerminalHandler(tornado.websocket.WebSocketHandler):
                         pass
         except IndexError:
             pass
-
-
-# class MonitorHandler(WebTerminalHandler):
-#     @django_request_support
-#     @require_auth('user')
-#     def open(self):
-#         try:
-#             self.returnlog = TermLogRecorder.loglist[self.get_argument('id')]
-#             self.returnlog.write_message = self.write_message
-#         except:
-#             self.write_message('Log is None')
-#             self.close()
-#
-#     def on_message(self, message):
-#         pass
-#
-#     def on_close(self):
-#         self.close()
 
 
 class Application(tornado.web.Application):
@@ -508,12 +487,5 @@ def main():
 
 
 if __name__ == '__main__':
-    # tornado.options.parse_command_line()
-    # app = Application()
-    # server = tornado.httpserver.HTTPServer(app)
-    # server.bind(options.port, options.host)
-    # #server.listen(options.port)
-    # server.start(num_processes=5)
-    # tornado.ioloop.IOLoop.instance().start()
-    print "Run server on %s:%s" % (options.host, options.port)
+    print("Run server on %s:%s" % (options.host, options.port))
     main()

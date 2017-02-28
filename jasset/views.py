@@ -15,7 +15,7 @@ def group_add(request):
     Group add view
     添加资产组
     """
-    header_title, path1, path2 = u'添加资产组', u'资产管理', u'添加资产组'
+    header_title, path1, path2 = '添加资产组', '资产管理', '添加资产组'
     asset_all = Asset.objects.all()
 
     if request.method == 'POST':
@@ -25,12 +25,12 @@ def group_add(request):
 
         try:
             if not name:
-                emg = u'组名不能为空'
+                emg = '组名不能为空'
                 raise ServerError(emg)
 
             asset_group_test = get_object(AssetGroup, name=name)
             if asset_group_test:
-                emg = u"该组名 %s 已存在" % name
+                emg = "该组名 %s 已存在" % name
                 raise ServerError(emg)
 
         except ServerError:
@@ -38,7 +38,7 @@ def group_add(request):
 
         else:
             db_add_group(name=name, comment=comment, asset_select=asset_select)
-            smg = u"主机组 %s 添加成功" % name
+            smg = "主机组 %s 添加成功" % name
 
     return my_render('jasset/group_add.html', locals(), request)
 
@@ -49,7 +49,7 @@ def group_edit(request):
     Group edit view
     编辑资产组
     """
-    header_title, path1, path2 = u'编辑主机组', u'资产管理', u'编辑主机组'
+    header_title, path1, path2 = '编辑主机组', '资产管理', '编辑主机组'
     group_id = request.GET.get('id', '')
     group = get_object(AssetGroup, id=group_id)
 
@@ -64,13 +64,13 @@ def group_edit(request):
 
         try:
             if not name:
-                emg = u'组名不能为空'
+                emg = '组名不能为空'
                 raise ServerError(emg)
 
             if group.name != name:
                 asset_group_test = get_object(AssetGroup, name=name)
                 if asset_group_test:
-                    emg = u"该组名 %s 已存在" % name
+                    emg = "该组名 %s 已存在" % name
                     raise ServerError(emg)
 
         except ServerError:
@@ -79,7 +79,7 @@ def group_edit(request):
         else:
             group.asset_set.clear()
             db_update_group(id=group_id, name=name, comment=comment, asset_select=asset_select)
-            smg = u"主机组 %s 添加成功" % name
+            smg = "主机组 %s 添加成功" % name
 
         return HttpResponseRedirect(reverse('asset_group_list'))
 
@@ -92,7 +92,7 @@ def group_list(request):
     list asset group
     列出资产组
     """
-    header_title, path1, path2 = u'查看资产组', u'资产管理', u'查看资产组'
+    header_title, path1, path2 = '查看资产组', '资产管理', '查看资产组'
     keyword = request.GET.get('keyword', '')
     asset_group_list = AssetGroup.objects.all()
     group_id = request.GET.get('id')
@@ -117,7 +117,7 @@ def group_del(request):
     for group_id in group_id_list:
         AssetGroup.objects.filter(id=group_id).delete()
 
-    return HttpResponse(u'删除成功')
+    return HttpResponse('删除成功')
 
 
 @require_role('admin')
@@ -126,7 +126,7 @@ def asset_add(request):
     Asset add view
     添加资产
     """
-    header_title, path1, path2 = u'添加资产', u'资产管理', u'添加资产'
+    header_title, path1, path2 = '添加资产', '资产管理', '添加资产'
     asset_group_all = AssetGroup.objects.all()
     af = AssetForm()
     default_setting = get_object(Setting, name='default')
@@ -139,11 +139,11 @@ def asset_add(request):
         is_active = True if request.POST.get('is_active') == '1' else False
         use_default_auth = request.POST.get('use_default_auth', '')
         try:
-            if Asset.objects.filter(hostname=unicode(hostname)):
-                error = u'该主机名 %s 已存在!' % hostname
+            if Asset.objects.filter(hostname=str(hostname)):
+                error = '该主机名 %s 已存在!' % hostname
                 raise ServerError(error)
             if len(hostname) > 54:
-                error = u"主机名长度不能超过53位!"
+                error = "主机名长度不能超过53位!"
                 raise ServerError(error)
         except ServerError:
             pass
@@ -160,16 +160,16 @@ def asset_add(request):
                 asset_save.save()
                 af_post.save_m2m()
 
-                msg = u'主机 %s 添加成功' % hostname
+                msg = '主机 %s 添加成功' % hostname
             else:
-                esg = u'主机 %s 添加失败' % hostname
+                esg = '主机 %s 添加失败' % hostname
 
     return my_render('jasset/asset_add.html', locals(), request)
 
 
 @require_role('admin')
 def asset_add_batch(request):
-    header_title, path1, path2 = u'添加资产', u'资产管理', u'批量添加'
+    header_title, path1, path2 = '添加资产', '资产管理', '批量添加'
     return my_render('jasset/asset_add_batch.html', locals(), request)
 
 
@@ -192,7 +192,7 @@ def asset_del(request):
                 asset = get_object(Asset, id=asset_id)
                 asset.delete()
 
-    return HttpResponse(u'删除成功')
+    return HttpResponse('删除成功')
 
 
 @require_role(role='super')
@@ -201,7 +201,7 @@ def asset_edit(request):
     edit a asset
     修改主机
     """
-    header_title, path1, path2 = u'修改资产', u'资产管理', u'修改资产'
+    header_title, path1, path2 = '修改资产', '资产管理', '修改资产'
 
     asset_id = request.GET.get('id', '')
     username = request.user.username
@@ -219,11 +219,11 @@ def asset_edit(request):
         use_default_auth = request.POST.get('use_default_auth', '')
         try:
             asset_test = get_object(Asset, hostname=hostname)
-            if asset_test and asset_id != unicode(asset_test.id):
-                emg = u'该主机名 %s 已存在!' % hostname
+            if asset_test and asset_id != str(asset_test.id):
+                emg = '该主机名 %s 已存在!' % hostname
                 raise ServerError(emg)
             if len(hostname) > 54:
-                emg = u'主机名长度不能超过54位!'
+                emg = '主机名长度不能超过54位!'
                 raise ServerError(emg)
             else:
                 if af_post.is_valid():
@@ -246,9 +246,9 @@ def asset_edit(request):
                     info = asset_diff(af_post.__dict__.get('initial'), request.POST)
                     db_asset_alert(asset, username, info)
 
-                    smg = u'主机 %s 修改成功' % ip
+                    smg = '主机 %s 修改成功' % ip
                 else:
-                    emg = u'主机 %s 修改失败' % ip
+                    emg = '主机 %s 修改失败' % ip
                     raise ServerError(emg)
         except ServerError as e:
             error = e.message
@@ -263,7 +263,7 @@ def asset_list(request):
     """
     asset list view
     """
-    header_title, path1, path2 = u'查看资产', u'资产管理', u'查看资产'
+    header_title, path1, path2 = '查看资产', '资产管理', '查看资产'
     username = request.user.username
     user_perm = request.session['role_id']
     idc_all = IDC.objects.filter()
@@ -295,7 +295,7 @@ def asset_list(request):
             asset_id_all = []
             user = get_object(User, username=username)
             asset_perm = get_group_user_perm(user) if user else {'asset': ''}
-            user_asset_perm = asset_perm['asset'].keys()
+            user_asset_perm = list(asset_perm['asset'].keys())
             for asset in user_asset_perm:
                 asset_id_all.append(asset.id)
             asset_find = Asset.objects.filter(pk__in=asset_id_all)
@@ -341,7 +341,7 @@ def asset_list(request):
         s = write_excel(asset_find)
         if s[0]:
             file_name = s[1]
-        smg = u'excel文件已生成，请点击下载!'
+        smg = 'excel文件已生成，请点击下载!'
         return my_render('jasset/asset_excel_download.html', locals(), request)
     assets_list, p, assets, page_range, current_page, show_first, show_end = pages(asset_find, request)
     if user_perm != 0:
@@ -366,7 +366,7 @@ def asset_edit_batch(request):
         group = request.POST.getlist('group', [])
         cabinet = request.POST.get('cabinet', '')
         comment = request.POST.get('comment', '')
-        asset_id_all = unicode(request.GET.get('asset_id_all', ''))
+        asset_id_all = str(request.GET.get('asset_id_all', ''))
         asset_id_all = asset_id_all.split(',')
         for asset_id in asset_id_all:
             alert_list = []
@@ -375,30 +375,30 @@ def asset_edit_batch(request):
                 if env:
                     if asset.env != env:
                         asset.env = env
-                        alert_list.append([u'运行环境', asset.env, env])
+                        alert_list.append(['运行环境', asset.env, env])
                 if idc_id:
                     idc = get_object(IDC, id=idc_id)
-                    name_old = asset.idc.name if asset.idc else u''
+                    name_old = asset.idc.name if asset.idc else ''
                     if idc and idc.name != name_old:
                         asset.idc = idc
-                        alert_list.append([u'机房', name_old, idc.name])
+                        alert_list.append(['机房', name_old, idc.name])
                 if port:
-                    if unicode(asset.port) != port:
+                    if str(asset.port) != port:
                         asset.port = port
-                        alert_list.append([u'端口号', asset.port, port])
+                        alert_list.append(['端口号', asset.port, port])
 
                 if use_default_auth:
                     if use_default_auth == 'default':
                         asset.use_default_auth = 1
                         asset.username = ''
                         asset.password = ''
-                        alert_list.append([u'使用默认管理账号', asset.use_default_auth, u'默认'])
+                        alert_list.append(['使用默认管理账号', asset.use_default_auth, '默认'])
                     elif use_default_auth == 'user_passwd':
                         asset.use_default_auth = 0
                         asset.username = username
                         password_encode = CRYPTOR.encrypt(password)
                         asset.password = password_encode
-                        alert_list.append([u'使用默认管理账号', asset.use_default_auth, username])
+                        alert_list.append(['使用默认管理账号', asset.use_default_auth, username])
                 if group:
                     group_new, group_old, group_new_name, group_old_name = [], asset.group.all(), [], []
                     for group_id in group:
@@ -412,19 +412,19 @@ def asset_edit_batch(request):
                         for g in group_old:
                             group_old_name.append(g.name)
                         asset.group = group_instance
-                        alert_list.append([u'主机组', ','.join(group_old_name), ','.join(group_new_name)])
+                        alert_list.append(['主机组', ','.join(group_old_name), ','.join(group_new_name)])
                 if cabinet:
                     if asset.cabinet != cabinet:
                         asset.cabinet = cabinet
-                        alert_list.append([u'机柜号', asset.cabinet, cabinet])
+                        alert_list.append(['机柜号', asset.cabinet, cabinet])
                 if comment:
                     if asset.comment != comment:
                         asset.comment = comment
-                        alert_list.append([u'备注', asset.comment, comment])
+                        alert_list.append(['备注', asset.comment, comment])
                 asset.save()
 
             if alert_list:
-                recode_name = unicode(name) + ' - ' + u'批量'
+                recode_name = str(name) + ' - ' + '批量'
                 AssetRecord.objects.create(asset=asset, username=recode_name, content=alert_list)
         return my_render('jasset/asset_update_status.html', locals(), request)
 
@@ -436,20 +436,20 @@ def asset_detail(request):
     """
     Asset detail view
     """
-    header_title, path1, path2 = u'主机详细信息', u'资产管理', u'主机详情'
+    header_title, path1, path2 = '主机详细信息', '资产管理', '主机详情'
     asset_id = request.GET.get('id', '')
     asset = get_object(Asset, id=asset_id)
     perm_info = get_group_asset_perm(asset)
     log = Log.objects.filter(host=asset.hostname)
     if perm_info:
         user_perm = []
-        for perm, value in perm_info.items():
+        for perm, value in list(perm_info.items()):
             if perm == 'user':
-                for user, role_dic in value.items():
+                for user, role_dic in list(value.items()):
                     user_perm.append([user, role_dic.get('role', '')])
             elif perm == 'user_group' or perm == 'rule':
                 user_group_perm = value
-    print perm_info
+    print(perm_info)
 
     asset_record = AssetRecord.objects.filter(asset=asset).order_by('-alert_time')
 
@@ -475,20 +475,20 @@ def asset_update(request):
 def asset_update_batch(request):
     if request.method == 'POST':
         arg = request.GET.get('arg', '')
-        name = unicode(request.user.username) + ' - ' + u'自动更新'
+        name = str(request.user.username) + ' - ' + '自动更新'
         if arg == 'all':
             asset_list = Asset.objects.all()
         else:
             asset_list = []
-            asset_id_all = unicode(request.POST.get('asset_id_all', ''))
+            asset_id_all = str(request.POST.get('asset_id_all', ''))
             asset_id_all = asset_id_all.split(',')
             for asset_id in asset_id_all:
                 asset = get_object(Asset, id=asset_id)
                 if asset:
                     asset_list.append(asset)
         asset_ansible_update(asset_list, name)
-        return HttpResponse(u'批量更新成功!')
-    return HttpResponse(u'批量更新成功!')
+        return HttpResponse('批量更新成功!')
+    return HttpResponse('批量更新成功!')
 
 
 @require_role('admin')
@@ -496,18 +496,18 @@ def idc_add(request):
     """
     IDC add view
     """
-    header_title, path1, path2 = u'添加IDC', u'资产管理', u'添加IDC'
+    header_title, path1, path2 = '添加IDC', '资产管理', '添加IDC'
     if request.method == 'POST':
         idc_form = IdcForm(request.POST)
         if idc_form.is_valid():
             idc_name = idc_form.cleaned_data['name']
 
             if IDC.objects.filter(name=idc_name):
-                emg = u'添加失败, 此IDC %s 已存在!' % idc_name
+                emg = '添加失败, 此IDC %s 已存在!' % idc_name
                 return my_render('jasset/idc_add.html', locals(), request)
             else:
                 idc_form.save()
-                smg = u'IDC: %s添加成功' % idc_name
+                smg = 'IDC: %s添加成功' % idc_name
             return HttpResponseRedirect(reverse('idc_list'))
     else:
         idc_form = IdcForm()
@@ -519,7 +519,7 @@ def idc_list(request):
     """
     IDC list view
     """
-    header_title, path1, path2 = u'查看IDC', u'资产管理', u'查看IDC'
+    header_title, path1, path2 = '查看IDC', '资产管理', '查看IDC'
     posts = IDC.objects.all()
     keyword = request.GET.get('keyword', '')
     if keyword:
@@ -535,7 +535,7 @@ def idc_edit(request):
     """
     IDC edit view
     """
-    header_title, path1, path2 = u'编辑IDC', u'资产管理', u'编辑IDC'
+    header_title, path1, path2 = '编辑IDC', '资产管理', '编辑IDC'
     idc_id = request.GET.get('id', '')
     idc = get_object(IDC, id=idc_id)
     if request.method == 'POST':
@@ -571,7 +571,7 @@ def asset_upload(request):
         excel_file = request.FILES.get('file_name', '')
         ret = excel_to_db(excel_file)
         if ret:
-            smg = u'批量添加成功'
+            smg = '批量添加成功'
         else:
-            emg = u'批量添加失败,请检查格式.'
+            emg = '批量添加失败,请检查格式.'
     return my_render('jasset/asset_add_batch.html', locals(), request)

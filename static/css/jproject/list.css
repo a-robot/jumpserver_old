@@ -1,0 +1,25 @@
+#tree {
+  display: inline-block;
+  width: 50%;
+  vertical-align: top;
+}
+
+.host-detail {
+  display: none;
+  width: 45%;
+  margin-left: 30px;
+}
+
+.host-detail-line {
+  display: inline;
+}
+
+.host-detail-item {
+  display: inline-block;
+  width: 45%;
+}
+
+.connect-btn-line {
+  display: block;
+  margin-top: 10px;
+}
