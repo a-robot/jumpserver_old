@@ -12,7 +12,7 @@ from jperm.utils import gen_keys, trans_all
 from jperm.ansible_api import MyTask
 from jperm.perm_api import get_role_info, get_role_push_host
 from jumpserver.api import my_render, get_object, CRYPTOR
-
+import re
 
 # 设置PERM APP Log
 from jumpserver.api import logger
