@@ -263,7 +263,7 @@ def setting(request):
                         msg = "设置成功"
         except ServerError as e:
             error = e.message
-    return render(request, 'setting.html')
+    return render(request, 'setting.html', locals())
 
 
 @login_required(login_url='/login')
