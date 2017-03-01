@@ -1,3 +1,11 @@
+{% if request.session.role_id == 0 %}
 <li id="jproject">
   <a href="{% url 'project_list' %}"><i class="fa fa-inbox"></i> <span class="nav-label">查看项目</span><span class="label label-info pull-right"></span></a>
 </li>
+{% endif %}
+
+{% if request.session.role_id == 2 %}
+<li id="jproject">
+  <a href="{% url 'project_list' %}"><i class="fa fa-inbox"></i> <span class="nav-label">项目管理</span><span class="label label-info pull-right"></span></a>
+</li>
+{% endif %}

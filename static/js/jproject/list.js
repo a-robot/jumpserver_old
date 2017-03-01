@@ -1,14 +1,14 @@
-$(document).ready();
-
 var app = angular.module('myApp', []).config(function($interpolateProvider) {
     $interpolateProvider.startSymbol('{$');
     $interpolateProvider.endSymbol('$}');
 });
 
+
 app.controller('AssertDetailCtrl', function($scope, $http) {
     get_project_json($scope, $http);
     $scope.connect_click = connect;
 });
+
 
 function get_project_json($scope, $http){
     var url = '/jproject/project/list/json';
@@ -21,22 +21,10 @@ function get_project_json($scope, $http){
     });
 }
 
+
 function init_project_tree($scope, data){
-    var source = [];
-    $.each(data, function(project_name, project){
-        if (project_name) {
-            var tree_project = {title: project_name, folder: true, children: []};
-            $.each(project['assets'], function(index, asset){
-                var tree_asset = {
-                    title: asset['hostname'],
-                    key: asset['id'],
-                    type: 'host',
-                }
-                tree_project['children'].push(tree_asset);
-            });
-            source.push(tree_project);
-        }
-    });
+    var projects = data.projects;
+    var source = gen_project_source(projects);
     $("#tree").fancytree({
         source: source,
         click: function(e, data){
@@ -45,12 +33,15 @@ function init_project_tree($scope, data){
     });
 }
 
+
 function init_host_data($scope, data){
     var hosts = [];
-    $.each(data, function(pn, p){
-        if(pn){
-            hosts = hosts.concat(p.assets);
-        }
+    $.each(data.projects, function(_i, project){
+        $.each(project.app_modules, function(_i, app_module){
+            $.each(app_module.hosts, function(_i, host){
+                hosts.push(host);
+            });
+        });
     });
 
     var host_data = {};
@@ -61,12 +52,12 @@ function init_host_data($scope, data){
     $scope.host_data = host_data;
 }
 
+
 function tree_click($scope, e, data){
     if(!data.node.isFolder()){
         $scope.selected_asset = $scope.host_data[data.node.key];
         $scope.$apply();
         $('.host-detail').css('display', 'inline-block');
-        console.log($scope.selected_asset);
     }
 }
 
@@ -103,4 +94,41 @@ function connect(id, hostname){
             }
         }
     });
+}
+
+
+function gen_project_source(projects){
+    var source = [];
+    $.each(projects, function(_i, project){
+        var project_name = project.name;
+        var tree_project = {title: project_name, folder: true};
+        tree_project.children = gen_app_moudule_source(project.app_modules);
+        source.push(tree_project);
+    });
+    return source;
+}
+
+
+function gen_app_moudule_source(app_modules){
+    var source = [];
+    $.each(app_modules, function(_i, app_module){
+        var tree_app_module = {title: app_module.name, folder: true}
+        tree_app_module.children = gen_host_source(app_module.hosts);
+        source.push(tree_app_module);
+    });
+    return source;
+}
+
+
+function gen_host_source(hosts){
+    var source = [];
+    $.each(hosts, function(_i, host){
+        var tree_host = {
+            title: host.hostname,
+            key: host.id,
+            type: 'host',
+        }
+        source.push(tree_host);
+    });
+    return source;
 }
