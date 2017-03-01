@@ -24,6 +24,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=2, choices=USER_ROLE_CHOICES, default='CU')
     group = models.ManyToManyField(UserGroup)
     ssh_key_pwd = models.CharField(max_length=200)
+    last_login = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.username
