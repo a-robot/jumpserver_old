@@ -6,7 +6,7 @@ from jperm.perm_api import *
 from juser.models import User, UserGroup
 from jasset.models import Asset, AssetGroup
 from jperm.models import PermRole, PermRule, PermSudo, PermPush
-from jumpserver.models import Setting
+from jsetting.models import Setting
 
 from jperm.utils import gen_keys, trans_all
 from jperm.ansible_api import MyTask

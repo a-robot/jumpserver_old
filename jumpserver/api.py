@@ -25,7 +25,7 @@ from django.template import RequestContext
 from jasset.models import Asset, AssetGroup
 from jlog.models import Log, TtyLog
 from jperm.models import PermRule, PermRole
-from jumpserver.models import Setting
+from jsetting.models import Setting
 from juser.models import User, UserGroup
 
 

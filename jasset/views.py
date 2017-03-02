@@ -3,7 +3,7 @@
 from django.db.models import Q
 from jasset.asset_api import *
 from jumpserver.api import *
-from jumpserver.models import Setting
+from jsetting.models import Setting
 from jasset.forms import AssetForm, IdcForm
 from jasset.models import Asset, IDC, AssetGroup, ASSET_TYPE, ASSET_STATUS
 from jperm.perm_api import get_group_asset_perm, get_group_user_perm

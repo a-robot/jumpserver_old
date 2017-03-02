@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'jproject',
     'jperm',
     'jlog',
+    'jsetting',
 ]
 
 MIDDLEWARE = [

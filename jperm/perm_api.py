@@ -3,7 +3,7 @@
 from django.db.models.query import QuerySet
 from jumpserver.api import *
 
-from jumpserver.models import Setting
+from jsetting.models import Setting
 from jperm.models import PermRole, PermPush, PermRule
 
 

@@ -1,7 +1,7 @@
 from django.conf.urls import include, url
 from django.contrib import admin
 
-from jumpserver.views import index, skin_config, jmp_login, jmp_logout, exec_cmd, upload, download, setting, web_terminal
+from jumpserver.views import index, skin_config, jmp_login, jmp_logout, exec_cmd, upload, download, web_terminal
 
 
 urlpatterns = [
@@ -13,8 +13,8 @@ urlpatterns = [
     url(r'^exec_cmd/$', exec_cmd, name='exec_cmd'),
     url(r'^file/upload/$', upload, name='file_upload'),
     url(r'^file/download/$', download, name='file_download'),
-    url(r'^setting', setting, name='setting'),
     url(r'^terminal/$', web_terminal, name='terminal'),
+    url(r'^jsetting/', include('jsetting.urls')),
     url(r'^juser/', include('juser.urls')),
     url(r'^jasset/', include('jasset.urls')),
     url(r'^jlog/', include('jlog.urls')),

@@ -20,7 +20,7 @@ from jlog.models import Log, FileLog
 from jperm.perm_api import get_group_user_perm, gen_resource
 from jperm.ansible_api import MyRunner
 from jumpserver.api import require_role, is_role_request, defend_attack, get_object, ServerError, mkdir, CRYPTOR, my_render, get_tmp_dir, logger
-from jumpserver.models import Setting
+from jsetting.models import Setting
 from juser.models import User
 
 
@@ -215,55 +215,6 @@ def jmp_login(request):
 def jmp_logout(request):
     logout(request)
     return HttpResponseRedirect(reverse('index'))
-
-
-@require_role('admin')
-def setting(request):
-    header_title, path1 = '项目设置', '设置'
-    setting_default = get_object(Setting, name='default')
-
-    if request.method == "POST":
-        try:
-            setting_raw = request.POST.get('setting', '')
-            if setting_raw == 'default':
-                username = request.POST.get('username', '')
-                port = request.POST.get('port', '')
-                password = request.POST.get('password', '')
-                private_key = request.POST.get('key', '')
-
-                if len(password) > 30:
-                    raise ServerError('秘密长度不能超过30位!')
-
-                if '' in [username, port]:
-                    return ServerError('所填内容不能为空, 且密码和私钥填一个')
-                else:
-                    private_key_dir = os.path.join(settings.BASE_DIR, 'keys', 'default')
-                    private_key_path = os.path.join(private_key_dir, 'admin_user.pem')
-                    mkdir(private_key_dir)
-
-                    if private_key:
-                        with open(private_key_path, 'w') as f:
-                                f.write(private_key)
-                        os.chmod(private_key_path, 0o600)
-
-                    if setting_default:
-                        if password:
-                            password_encode = CRYPTOR.encrypt(password)
-                        else:
-                            password_encode = password
-                        Setting.objects.filter(name='default').update(field1=username, field2=port,
-                                                                      field3=password_encode,
-                                                                      field4=private_key_path)
-
-                    else:
-                        password_encode = CRYPTOR.encrypt(password)
-                        setting_r = Setting(name='default', field1=username, field2=port,
-                                            field3=password_encode,
-                                            field4=private_key_path).save()
-                        msg = "设置成功"
-        except ServerError as e:
-            error = e.message
-    return render(request, 'setting.html', locals())
 
 
 @login_required(login_url='/login')
