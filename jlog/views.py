@@ -122,19 +122,6 @@ def log_history(request):
     return HttpResponse('无日志记录!')
 
 
-# @require_role('admin')
-# def log_record(request):
-#     log_id = request.GET.get('id', 0)
-#     log = Log.objects.filter(id=int(log_id))
-#     if log:
-#         log = log[0]
-#         log_file = log.log_path + '.log'
-#         log_time = log.log_path + '.time'
-#         if os.path.isfile(log_file) and os.path.isfile(log_time):
-#             content = renderTemplate(log_file, log_time)
-#             return HttpResponse(content)
-#         else:
-#             return HttpResponse('无日志记录!')
 @require_role('admin')
 def log_record(request):
     """
@@ -143,7 +130,7 @@ def log_record(request):
     if request.method == "GET":
         return render(request, 'jlog/record.html')
     elif request.method == "POST":
-        log_id = request.REQUEST.get('id', None)
+        log_id = request.GET.get('id', None)
         if log_id:
             TermL = TermLogRecorder(request.user)
             log = Log.objects.get(id=int(log_id))
@@ -156,7 +143,7 @@ def log_record(request):
             else:
                 return HttpResponse(TermL.load_full_log(filename=log.filename))
         else:
-            return HttpResponse("ERROR")
+            return HttpResponse("xx ERROR")
     else:
         return HttpResponse("ERROR METHOD!")
 
@@ -275,7 +262,7 @@ class TermLogRecorder(object):
         # print self.commands
         # print self.CMD
         # print ">>>>>>>>>>>>>>>>"
-        self.log[str(time.time() - self.recoderStartTime)] = msg.decode('utf-8', 'replace')
+        self.log[str(time.time() - self.recoderStartTime)] = msg
 
     def save(self, path=settings.LOG_DIR):
         date = datetime.datetime.now().strftime('%Y%m%d')

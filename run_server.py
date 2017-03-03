@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import time
-import datetime
 import json
 import os
 import sys
@@ -10,7 +9,7 @@ import os.path
 import threading
 import re
 import functools
-from django.core.signals import request_started, request_finished
+import select
 
 import tornado.ioloop
 import tornado.options
@@ -19,11 +18,11 @@ import tornado.websocket
 import tornado.httpserver
 import tornado.gen
 import tornado.httpclient
+from django.utils import timezone
+from django.core.signals import request_started, request_finished
 from tornado.websocket import WebSocketClosedError
-
 from tornado.options import define, options
 from pyinotify import WatchManager, ProcessEvent, IN_DELETE, IN_CREATE, IN_MODIFY, AsyncNotifier
-import select
 
 from connect import Tty, User, Asset, PermRole, logger, get_object, gen_resource
 from connect import TtyLog, Log, Session, user_have_perm, get_group_user_perm, MyRunner, ExecLog
@@ -61,7 +60,7 @@ def require_auth(role='user'):
             if session_key:
                 session = get_object(Session, session_key=session_key)
                 logger.debug('Websocket: session: %s' % session)
-                if session and datetime.datetime.now() < session.expire_date:
+                if session and timezone.now() < session.expire_date:
                     user_id = session.get_decoded().get('_auth_user_id')
                     request.user_id = user_id
                     user = get_object(User, id=user_id)
@@ -379,7 +378,7 @@ class WebTerminalHandler(tornado.websocket.WebSocketHandler):
                 elif not self.term.vim_flag:
                     result = self.term.deal_command(self.term.data)[0:200]
                     if len(result) > 0:
-                        TtyLog(log=self.log, datetime=datetime.datetime.now(), cmd=result).save()
+                        TtyLog(log=self.log, datetime=timezone.now(), cmd=result).save()
                 self.term.vim_data = ''
                 self.term.data = ''
                 self.term.input_mode = False
@@ -394,9 +393,9 @@ class WebTerminalHandler(tornado.websocket.WebSocketHandler):
         if self in WebTerminalHandler.clients:
             WebTerminalHandler.clients.remove(self)
         try:
-            self.log_file_f.write('End time is %s' % datetime.datetime.now())
+            self.log_file_f.write('End time is %s' % timezone.now())
             self.log.is_finished = True
-            self.log.end_time = datetime.datetime.now()
+            self.log.end_time = timezone.now()
             self.log.filename = self.termlog.filename
             self.log.save()
             self.log_time_f.close()
@@ -418,10 +417,11 @@ class WebTerminalHandler(tornado.websocket.WebSocketHandler):
                     recv = self.channel.recv(1024)
                     if not len(recv):
                         return
+                    recv = recv.decode('utf-8', 'replace')
                     data += recv
                     self.term.vim_data += recv
                     try:
-                        self.write_message(data.decode('utf-8', 'replace'))
+                        self.write_message(data)
                         self.termlog.write(data)
                         self.termlog.recoder = False
                         now_timestamp = time.time()

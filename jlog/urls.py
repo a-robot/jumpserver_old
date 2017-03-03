@@ -1,5 +1,5 @@
 # coding:utf-8
-from django.conf.urls import include, url
+from django.conf.urls import url
 from jlog.views import log_list, log_detail, log_history, log_kill, log_record
 
 
