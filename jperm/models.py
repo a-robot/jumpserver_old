@@ -1,5 +1,3 @@
-import datetime
-
 from django.db import models
 from jasset.models import Asset, AssetGroup
 from juser.models import User, UserGroup
@@ -29,7 +27,7 @@ class PermRole(models.Model):
     password = models.CharField(max_length=512)
     key_path = models.CharField(max_length=100)
     date_added = models.DateTimeField(auto_now=True)
-    sudo = models.ManyToManyField(PermSudo, related_name='perm_role')
+    sudo = models.ManyToManyField(PermSudo, related_name='perm_role', blank=True)
 
     def __str__(self):
         return self.name
