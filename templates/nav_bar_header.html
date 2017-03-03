@@ -10,6 +10,7 @@
         </form>
     </div>
     <ul class="nav navbar-top-links navbar-right">
+        {% comment %}
         <li>
             <span class="m-r-sm text-muted welcome-message">欢迎使用Jumpserver开源跳板机系统</span>
         </li>
@@ -18,6 +19,7 @@
                  <span class="m-r-sm text-muted welcome-message">帮助</span>
             </a>
         </li>
+        {% endcomment %}
         <li>
             <a href="{% url 'logout' %}">
                 <i class="fa fa-sign-out"></i> Log out
