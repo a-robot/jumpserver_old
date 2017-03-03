@@ -1,15 +1,17 @@
 # coding: utf-8
 
+import datetime
+import traceback
 import xlrd
 import xlsxwriter
+
 from django.db.models import AutoField
-from jumpserver.api import *
-from jasset.models import ASSET_STATUS, ASSET_TYPE, ASSET_ENV, IDC, AssetRecord
+
+from jasset.models import ASSET_STATUS, ASSET_TYPE, ASSET_ENV, IDC, AssetRecord, Asset, AssetGroup
 from jperm.ansible_api import MyRunner
 from jperm.perm_api import gen_resource
+from jumpserver.api import get_object, CRYPTOR, logger
 from jumpserver.templatetags.mytags import get_disk_info
-
-import traceback
 
 
 def group_add_asset(group, asset_id=None, asset_ip=None):
@@ -107,7 +109,7 @@ def asset_diff(before, after):
     asset change before and after
     """
     alter_dic = {}
-    before_dic, after_dic = before, dict(after.iterlists())
+    before_dic, after_dic = before, dict(after.lists())
     for k, v in list(before_dic.items()):
         after_dic_values = after_dic.get(k, [])
         if k == 'group':
@@ -140,7 +142,7 @@ def db_asset_alert(asset, username, alert_dic):
     alert_list = []
     asset_tuple_dic = {'status': ASSET_STATUS, 'env': ASSET_ENV, 'asset_type': ASSET_TYPE}
     for field, value in alert_dic.items():
-        field_name = Asset._meta.get_field_by_name(field)[0].verbose_name
+        field_name = Asset._meta.get_field(field).verbose_name
         if field == 'idc':
             old = IDC.objects.filter(id=value[0]) if value[0] else ''
             new = IDC.objects.filter(id=value[1]) if value[1] else ''
@@ -253,8 +255,7 @@ def write_excel(asset_all):
 def copy_model_instance(obj):
     initial = dict([(f.name, getattr(obj, f.name))
                     for f in obj._meta.fields
-                    if not isinstance(f, AutoField) and \
-                    not f in list(obj._meta.parents.values())])
+                    if not isinstance(f, AutoField) and f not in list(obj._meta.parents.values())])
     return obj.__class__(**initial)
 
 
@@ -278,7 +279,7 @@ def excel_to_db(excel_file):
     """
     try:
         data = xlrd.open_workbook(filename=None, file_contents=excel_file.read())
-    except Exception as e:
+    except Exception:
         return False
     else:
         table = data.sheets()[0]
@@ -400,4 +401,3 @@ def asset_ansible_update_all():
     name = '定时更新'
     asset_all = Asset.objects.all()
     asset_ansible_update(asset_all, name)
-
