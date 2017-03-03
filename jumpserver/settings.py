@@ -122,6 +122,12 @@ STATIC_URL = '/static/'
 
 
 # ----------------- additional config ---------------- #
+# ========== cron job =========
+CRONJOBS = [
+    ('0 1 * * *', 'jasset.asset_api.asset_ansible_update_all'),
+    ('*/10 * * * *', 'jlog.log_api.kill_invalid_connection'),
+]
+
 # ========== static dir =========
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "static"),
@@ -197,9 +203,7 @@ else:
         }
     }
 
-
-# ========== cron job =========
-CRONJOBS = [
-    ('0 1 * * *', 'jasset.asset_api.asset_ansible_update_all'),
-    ('*/10 * * * *', 'jlog.log_api.kill_invalid_connection'),
-]
+# ========== brand ===========
+BRAND = config.get('brand', 'brand')
+LOGO_128 = config.get('brand', 'logo_128')
+COPYRIGHT = config.get('brand', 'copyright')

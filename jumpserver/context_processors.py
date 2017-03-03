@@ -1,3 +1,5 @@
+from django.conf import settings
+
 from juser.models import User
 from jasset.models import Asset
 
@@ -26,5 +28,9 @@ def name_proc(request):
             'host_total_num': host_total_num,
             'host_active_num': host_active_num,
         }
+
+    info_dic['brand'] = settings.BRAND
+    info_dic['logo_128'] = settings.LOGO_128
+    info_dic['copyright'] = settings.COPYRIGHT
 
     return info_dic
