@@ -1,59 +1,25 @@
+#!/usr/bin/env python3
 # coding=utf-8
-
+import json
 from tempfile import NamedTemporaryFile
-import os.path
-
-from ansible.inventory.group import Group
-from ansible.inventory.host import Host
-from ansible.inventory import Inventory
+from passlib.hash import sha512_crypt
 
 from ansible.executor.task_queue_manager import TaskQueueManager
+from ansible.inventory import Inventory
+from ansible.inventory.group import Group
+from ansible.inventory.host import Host
+from ansible.parsing.dataloader import DataLoader
 from ansible.playbook.play import Play
-
-from ansible import utils
-import ansible.constants as C
-from passlib.hash import sha512_crypt
+from ansible.plugins.callback.json import CallbackModule
+from ansible.vars import VariableManager
 from django.template.loader import get_template
 from django.template import Context
 
 
-from jumpserver.api import logger
-
-
-API_DIR = os.path.dirname(os.path.abspath(__file__))
-ANSIBLE_DIR = os.path.join(API_DIR, 'playbooks')
-C.HOST_KEY_CHECKING = False
-
-
-class AnsibleError(Exception):
-    """
-    the base AnsibleError which contains error(required),
-    data(optional) and message(optional).
-    存储所有Ansible 异常对象
-    """
-    def __init__(self, error, data='', message=''):
-        super(AnsibleError, self).__init__(message)
-        self.error = error
-        self.data = data
-        self.message = message
-
-
-class CommandValueError(AnsibleError):
-    """
-    indicate the input value has error or invalid. 
-    the data specifies the error field of input form.
-    输入不合法 异常对象
-    """
-    def __init__(self, field, message=''):
-        super(CommandValueError, self).__init__('value:invalid', field, message)
-
-
 class MyInventory(Inventory):
-    """
-    this is my ansible inventory object.
-    """
-    def __init__(self, resource):
-        """
+
+    def __init__(self, resource, loader, variable_manager, host_list=[]):
+        '''
         resource的数据格式是一个列表字典，比如
             {
                 "group1": {
@@ -64,15 +30,15 @@ class MyInventory(Inventory):
 
         如果你只传入1个列表，这默认该列表内的所有主机属于my_group组,比如
             [{"hostname": "10.10.10.10", "port": "22", "username": "test", "password": "mypass"}, ...]
-        """
+        '''
+        super(MyInventory, self).__init__(loader=loader, variable_manager=variable_manager, host_list=host_list)
         self.resource = resource
-        self.inventory = Inventory(host_list=[])
         self.gen_inventory()
 
     def my_add_group(self, hosts, groupname, groupvars=None):
-        """
+        '''
         add hosts to a group
-        """
+        '''
         my_group = Group(name=groupname)
 
         # if group variables exists, add them to group
@@ -83,12 +49,12 @@ class MyInventory(Inventory):
         # add hosts to group
         for host in hosts:
             # set connection variables
-            hostname = host.get("hostname")
+            hostname = host.get('hostname')
             hostip = host.get('ip', hostname)
-            hostport = host.get("port")
-            username = host.get("username")
-            password = host.get("password")
-            ssh_key = host.get("ssh_key")
+            hostport = host.get('port')
+            username = host.get('username')
+            password = host.get('password')
+            ssh_key = host.get('ssh_key')
             my_host = Host(name=hostname, port=hostport)
             my_host.set_variable('ansible_ssh_host', hostip)
             my_host.set_variable('ansible_ssh_port', hostport)
@@ -96,59 +62,134 @@ class MyInventory(Inventory):
             my_host.set_variable('ansible_ssh_pass', password)
             my_host.set_variable('ansible_ssh_private_key_file', ssh_key)
 
-            # set other variables 
+            # set other variables
             for key, value in host.items():
-                if key not in ["hostname", "port", "username", "password"]:
+                if key not in ['hostname', 'port', 'username', 'password']:
                     my_host.set_variable(key, value)
             # add to group
             my_group.add_host(my_host)
 
-        self.inventory.add_group(my_group)
+        self.add_group(my_group)
 
     def gen_inventory(self):
-        """
+        '''
         add hosts to inventory.
-        """
+        '''
         if isinstance(self.resource, list):
             self.my_add_group(self.resource, 'default_group')
+
         elif isinstance(self.resource, dict):
-            for groupname, hosts_and_vars in self.resource.items():
-                self.my_add_group(hosts_and_vars.get("hosts"), groupname, hosts_and_vars.get("vars"))
+            for groupname, hosts_and_vars in self.resource.iteritems():
+                self.my_add_group(hosts_and_vars.get('hosts'), groupname, hosts_and_vars.get('vars'))
 
 
-class MyRunner(MyInventory):
-    """
-    This is a General object for parallel execute modules.
-    """
-    def __init__(self, *args, **kwargs):
-        super(MyRunner, self).__init__(*args, **kwargs)
-        self.results_raw = {}
+class Options(object):
+    '''
+    Options class to replace Ansible OptParser
+    '''
+    def __init__(self, verbosity=None, inventory=None, listhosts=None, subset=None, module_paths=None, extra_vars=None,
+                 forks=None, ask_vault_pass=None, vault_password_files=None, new_vault_password_file=None,
+                 output_file=None, tags=None, skip_tags=None, one_line=None, tree=None, ask_sudo_pass=None, ask_su_pass=None,
+                 sudo=None, sudo_user=None, become=None, become_method=None, become_user=None, become_ask_pass=None,
+                 ask_pass=None, private_key_file=None, remote_user=None, connection=None, timeout=None, ssh_common_args=None,
+                 sftp_extra_args=None, scp_extra_args=None, ssh_extra_args=None, poll_interval=None, seconds=None, check=None,
+                 syntax=None, diff=None, force_handlers=None, flush_cache=None, listtasks=None, listtags=None, module_path=None):
+        self.verbosity = verbosity
+        self.inventory = inventory
+        self.listhosts = listhosts
+        self.subset = subset
+        self.module_paths = module_paths
+        self.extra_vars = extra_vars
+        self.forks = forks
+        self.ask_vault_pass = ask_vault_pass
+        self.vault_password_files = vault_password_files
+        self.new_vault_password_file = new_vault_password_file
+        self.output_file = output_file
+        self.tags = tags
+        self.skip_tags = skip_tags
+        self.one_line = one_line
+        self.tree = tree
+        self.ask_sudo_pass = ask_sudo_pass
+        self.ask_su_pass = ask_su_pass
+        self.sudo = sudo
+        self.sudo_user = sudo_user
+        self.become = become
+        self.become_method = become_method
+        self.become_user = become_user
+        self.become_ask_pass = become_ask_pass
+        self.ask_pass = ask_pass
+        self.private_key_file = private_key_file
+        self.remote_user = remote_user
+        self.connection = connection
+        self.timeout = timeout
+        self.ssh_common_args = ssh_common_args
+        self.sftp_extra_args = sftp_extra_args
+        self.scp_extra_args = scp_extra_args
+        self.ssh_extra_args = ssh_extra_args
+        self.poll_interval = poll_interval
+        self.seconds = seconds
+        self.check = check
+        self.syntax = syntax
+        self.diff = diff
+        self.force_handlers = force_handlers
+        self.flush_cache = flush_cache
+        self.listtasks = listtasks
+        self.listtags = listtags
+        self.module_path = module_path
 
-    def run(self, module_name='shell', module_args='', timeout=10, forks=10, pattern='*',
-            become=False, become_method='sudo', become_user='root', become_pass='', transport='paramiko'):
-        """
-        run module from andible ad-hoc.
-        module_name: ansible module_name
-        module_args: ansible module args
-        """
 
-        hoc = Runner(
-            module_name=module_name,
-            module_args=module_args,
-            timeout=timeout,
+class MyRunner:
+
+    def __init__(self, resource):
+        self.options = Options()
+        self.options.connection = 'ssh'  # Need a connection type 'smart' or 'ssh'
+        self.options.become = True
+        self.options.become_method = 'sudo'
+        self.options.become_user = 'root'
+
+        # Become Pass Needed if not logging in as user root (do not support now)
+        passwords = {'become_pass': ''}
+
+        # Gets data from YAML/JSON files
+        self.loader = DataLoader()
+
+        # All the variables from all the various places
+        self.variable_manager = VariableManager()
+
+        # Set inventory, using most of above objects
+        self.inventory = MyInventory(resource=resource, loader=self.loader, variable_manager=self.variable_manager)
+        self.variable_manager.set_inventory(self.inventory)
+
+        # set callback object
+        self.results_callback = CallbackModule()
+
+        # playbook
+        self.tqm = TaskQueueManager(
             inventory=self.inventory,
-            pattern=pattern,
-            forks=forks,
-            become=become,
-            become_method=become_method,
-            become_user=become_user,
-            become_pass=become_pass,
-            transport=transport
+            variable_manager=self.variable_manager,
+            loader=self.loader,
+            options=self.options,
+            passwords=passwords,
+            stdout_callback=self.results_callback,
         )
 
-        self.results_raw = hoc.run()
-        logger.debug(self.results_raw)
-        return self.results_raw
+    def run(self, module_name='shell', module_args='', gather_facts=False, pattern='*'):
+        play_source = dict(
+            name='Ansible Play',
+            hosts=pattern,
+            gather_facts=gather_facts,
+            tasks=[
+                dict(action=dict(module=module_name, args=module_args)),
+            ]
+        )
+
+        self.play = Play().load(play_source, variable_manager=self.variable_manager, loader=self.loader)
+        self.tqm.run(self.play)
+        self.result_raw = self.results_callback.results
+        return self.result_raw
+
+    def close(self):
+        self.tqm.cleanup()
 
     @property
     def results(self):
@@ -156,121 +197,28 @@ class MyRunner(MyInventory):
         {'failed': {'localhost': ''}, 'ok': {'jumpserver': ''}}
         """
         result = {'failed': {}, 'ok': {}}
-        dark = self.results_raw.get('dark')
-        contacted = self.results_raw.get('contacted')
-        if dark:
-            for host, info in list(dark.items()):
-                result['failed'][host] = info.get('msg')
 
-        if contacted:
-            for host, info in list(contacted.items()):
+        results = self.result_raw[-1]
+        tasks = results.get('tasks', {})
+        hosts = tasks[0].get('hosts', {})
+
+        for host, info in hosts.items():
+            if info.get('unreachable') or info.get('failed'):
+                result['failed'][host] = info.get('msg')
+            else:
                 if info.get('invocation').get('module_name') in ['raw', 'shell', 'command', 'script']:
                     if info.get('rc') == 0:
                         result['ok'][host] = info.get('stdout') + info.get('stderr')
                     else:
                         result['failed'][host] = info.get('stdout') + info.get('stderr')
+                elif info.get('invocation').get('module_name') in ['setup']:
+                    result['ok'][host] = info.get('ansible_facts')
                 else:
                     if info.get('failed'):
                         result['failed'][host] = info.get('msg')
                     else:
                         result['ok'][host] = info.get('changed')
         return result
-
-
-class Command(MyInventory):
-    """
-    this is a command object for parallel execute command.
-    """
-    def __init__(self, *args, **kwargs):
-        super(Command, self).__init__(*args, **kwargs)
-        self.results_raw = {}
-
-    def run(self, command, module_name="command", timeout=10, forks=10, pattern=''):
-        """
-        run command from andible ad-hoc.
-        command  : 必须是一个需要执行的命令字符串， 比如 
-                 'uname -a'
-        """
-        data = {}
-
-        if module_name not in ["raw", "command", "shell"]:
-            raise CommandValueError("module_name",
-                                    "module_name must be of the 'raw, command, shell'")
-
-        self.results_raw = tqm.run()
-
-    @property
-    def result(self):
-        result = {}
-        for k, v in list(self.results_raw.items()):
-            if k == 'dark':
-                for host, info in list(v.items()):
-                    result[host] = {'dark': info.get('msg')}
-            elif k == 'contacted':
-                for host, info in list(v.items()):
-                    result[host] = {}
-                    if info.get('stdout'):
-                        result[host]['stdout'] = info.get('stdout')
-                    elif info.get('stderr'):
-                        result[host]['stderr'] = info.get('stderr')
-        return result
-
-    @property
-    def state(self):
-        result = {}
-        if self.stdout:
-            result['ok'] = self.stdout
-        if self.stderr:
-            result['err'] = self.stderr
-        if self.dark:
-            result['dark'] = self.dark
-        return result
-
-    @property
-    def exec_time(self):
-        """
-        get the command execute time.
-        """
-        result = {}
-        all = self.results_raw.get("contacted")
-        for key, value in all.items():
-            result[key] = {
-                    "start": value.get("start"),
-                    "end"  : value.get("end"),
-                    "delta": value.get("delta"),}
-        return result
-
-    @property
-    def stdout(self):
-        """
-        get the comamnd standard output.
-        """
-        result = {}
-        all = self.results_raw.get("contacted")
-        for key, value in all.items():
-            result[key] = value.get("stdout")
-        return result
-
-    @property
-    def stderr(self):
-        """
-        get the command standard error.
-        """
-        result = {}
-        all = self.results_raw.get("contacted")
-        for key, value in all.items():
-            if value.get("stderr") or value.get("warnings"):
-                result[key] = {
-                    "stderr": value.get("stderr"),
-                    "warnings": value.get("warnings"),}
-        return result
-
-    @property
-    def dark(self):
-        """
-        get the dark results.
-        """
-        return self.results_raw.get("dark")
 
 
 class MyTask(MyRunner):
@@ -418,8 +366,27 @@ class MyTask(MyRunner):
         return self.results
 
 
-if __name__ == "__main__":
-    resource = [{"hostname": "127.0.0.1", "port": "22", "username": "yumaojun", "password": "yusky0902", }]
-    cmd = Command(resource)
-    cmd.run('ls', pattern='*')
-    print(cmd.results_raw)
+if __name__ == '__main__':
+    res = [
+        {
+            'ssh_key': '/home/choldrim/SRC/PYTHON/jumpserver-new/keys/user/admin_deepin.pem',
+            'username': 'deepin',
+            'ip': '10.10.120.114',
+            'hostname': 'payOrder-provider01',
+            'port': 16001,
+            'password': 'deepin'
+        },
+        {
+            'ssh_key': '/home/choldrim/SRC/PYTHON/jumpserver-new/keys/user/admin_deepin.pem',
+            'username': 'deepin',
+            'ip': '10.10.120.114',
+            'hostname': 'payOrder-provider02',
+            'port': 16002,
+            'password': 'deepin'
+        }
+    ]
+    tqm = MyRunner(res)
+    #result = tqm.run(module_name='shell', module_args='ls /')
+    result = tqm.run(module_name='copy', module_args='src=/tmp/files.zip dest=/tmp')
+    print(json.dumps(result, indent=4))
+    #print(json.dumps(tqm.results, indent=4))
