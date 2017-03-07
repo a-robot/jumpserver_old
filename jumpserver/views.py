@@ -13,14 +13,12 @@ from django.conf import settings
 from django.db.models import Count
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, reverse
-from django.template import RequestContext
 
 from jasset.models import Asset
 from jlog.models import Log, FileLog
 from jperm.perm_api import get_group_user_perm, gen_resource
 from jperm.ansible_api import MyRunner
-from jumpserver.api import require_role, is_role_request, defend_attack, get_object, ServerError, mkdir, CRYPTOR, my_render, get_tmp_dir, logger
-from jsetting.models import Setting
+from jumpserver.api import require_role, is_role_request, defend_attack, get_object, my_render, get_tmp_dir, logger
 from juser.models import User
 
 
@@ -148,20 +146,7 @@ def index(request):
         login_10 = Log.objects.order_by('-start_time')[:10]
         login_more_10 = Log.objects.order_by('-start_time')[10:21]
 
-        context = {
-            'hosts': hosts,
-            'online_user': online_user,
-            'week_users': week_users,
-            'online_host': online_host,
-            'week_hosts': week_hosts,
-            'user_top_five': user_top_five,
-            'color': color,
-            'login_more_10': login_more_10,
-            'login_10': login_10,
-            'color': color,
-        }
-
-    return render(request, 'index.html', context=context)
+    return render(request, 'index.html', locals())
 
 
 def skin_config(request):
@@ -238,13 +223,13 @@ def upload(request):
 
         for upload_file in upload_files:
             file_path = '%s/%s' % (upload_dir, upload_file.name)
-            with open(file_path, 'w') as f:
+            with open(file_path, 'wb+') as f:
                 for chunk in upload_file.chunks():
                     f.write(chunk)
 
         res = gen_resource({'user': user, 'asset': asset_select})
         runner = MyRunner(res)
-        runner.run('copy', module_args='src=%s dest=%s directory_mode' % (upload_dir, '/tmp'), pattern='*')
+        runner.run('copy', module_args='src=%s dest=%s' % (upload_dir, '/tmp'), pattern='*')
         ret = runner.results
         logger.debug(ret)
         FileLog(user=request.user.username, host=' '.join([asset.hostname for asset in asset_select]),
@@ -298,7 +283,7 @@ def download(request):
         response['Content-Disposition'] = 'attachment; filename=%s.zip' % tmp_dir_name
         return response
 
-    return render(request, 'download.html')
+    return render(request, 'download.html', locals())
 
 
 @login_required(login_url='/login')
