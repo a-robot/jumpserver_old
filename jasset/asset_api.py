@@ -365,11 +365,12 @@ def get_ansible_asset_info(asset_ip, setup_info):
 def asset_ansible_update(obj_list, name=''):
     resource = gen_resource(obj_list)
     ansible_instance = MyRunner(resource)
-    ansible_asset_info = ansible_instance.run(module_name='setup', pattern='*')
+    ansible_instance.run(module_name='setup', pattern='*')
+    ansible_asset_info = ansible_instance.results
     logger.debug('获取硬件信息: %s' % ansible_asset_info)
     for asset in obj_list:
         try:
-            setup_info = ansible_asset_info['contacted'][asset.hostname]['ansible_facts']
+            setup_info = ansible_asset_info['ok'][asset.hostname]
             logger.debug("setup_info: %s" % setup_info)
         except KeyError as e:
             logger.error("获取setup_info失败: %s" % e)
@@ -377,19 +378,19 @@ def asset_ansible_update(obj_list, name=''):
         else:
             try:
                 asset_info = get_ansible_asset_info(asset.ip, setup_info)
-                print(asset_info)
                 other_ip, mac, cpu, memory, disk, sn, system_type, system_version, brand, system_arch = asset_info
-                asset_dic = {"other_ip": other_ip,
-                             "mac": mac,
-                             "cpu": cpu,
-                             "memory": memory,
-                             "disk": disk,
-                             "sn": sn,
-                             "system_type": system_type,
-                             "system_version": system_version,
-                             "system_arch": system_arch,
-                             "brand": brand
-                             }
+                asset_dic = {
+                    "other_ip": other_ip,
+                    "mac": mac,
+                    "cpu": cpu,
+                    "memory": memory,
+                    "disk": disk,
+                    "sn": sn,
+                    "system_type": system_type,
+                    "system_version": system_version,
+                    "system_arch": system_arch,
+                    "brand": brand
+                 }
 
                 ansible_record(asset, asset_dic, name)
             except Exception as e:
@@ -398,6 +399,7 @@ def asset_ansible_update(obj_list, name=''):
 
 
 def asset_ansible_update_all():
+    logger.debug('开始更新硬件信息')
     name = '定时更新'
     asset_all = Asset.objects.all()
     asset_ansible_update(asset_all, name)
