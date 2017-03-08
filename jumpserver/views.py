@@ -254,7 +254,7 @@ def download(request):
         asset_ids = request.POST.getlist('asset_ids', '')
         file_path = request.POST.get('file_path')
         date_now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        upload_dir = get_tmp_dir()
+        download_dir = get_tmp_dir()
         for asset_id in asset_ids:
             asset_select.append(get_object(Asset, id=asset_id))
 
@@ -264,19 +264,25 @@ def download(request):
 
         res = gen_resource({'user': user, 'asset': asset_select})
         runner = MyRunner(res)
-        runner.run('fetch', module_args='src=%s dest=%s' % (file_path, upload_dir), pattern='*')
+        runner.run('fetch', module_args='src=%s dest=%s' % (file_path, download_dir), pattern='*')
         FileLog(user=request.user.username, host=' '.join([asset.hostname for asset in asset_select]),
                 filename=file_path, type='download', remote_ip=remote_ip, result=runner.results).save()
         logger.debug(runner.results)
-        tmp_dir_name = os.path.basename(upload_dir)
+        tmp_dir_name = os.path.basename(download_dir)
         file_zip = '/tmp/'+tmp_dir_name+'.zip'
         zf = zipfile.ZipFile(file_zip, "w", zipfile.ZIP_DEFLATED)
-        for dirname, subdirs, files in os.walk(upload_dir):
-            zf.write(dirname)
+
+        for dirname, subdirs, files in os.walk(download_dir):
+            arcname = dirname.split(download_dir)[-1]
+            if arcname:
+                zf.write(dirname, arcname)
             for filename in files:
-                zf.write(os.path.join(dirname, filename))
+                filename = os.path.join(dirname, filename)
+                arcname = filename.split(download_dir)[-1]
+                zf.write(filename, arcname)
+
         zf.close()
-        f = open(file_zip)
+        f = open(file_zip, 'rb')
         data = f.read()
         f.close()
         response = HttpResponse(data, content_type='application/octet-stream')
