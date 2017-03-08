@@ -1,3 +1,5 @@
+import json
+
 from jasset.models import Asset, ASSET_TYPE, ASSET_STATUS, ASSET_ENV
 from jproject.models import Project, AppModule
 from jumpserver.api import require_role
@@ -38,7 +40,7 @@ def get_hosts(app_module_id, perm_asset_ids):
             'brand': asset.brand,
             'cpu': asset.cpu,
             'memory': asset.memory,
-            'disk': asset.disk,
+            'disk': disk_format(asset.disk),
             'system_type': asset.system_type,
             'system_version': asset.system_version,
             'system_arch': asset.system_arch,
@@ -52,4 +54,13 @@ def get_hosts(app_module_id, perm_asset_ids):
         }
         ret.append(ret_asset)
 
+    return ret
+
+
+def disk_format(disk):
+    disk_obj = json.loads(disk)
+    ret = ''
+    for name, size in disk_obj.items():
+        ret += '%s: %sG, ' % (name, size)
+    ret = ret.rstrip(', ')
     return ret

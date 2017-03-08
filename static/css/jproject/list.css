@@ -23,3 +23,7 @@
   display: block;
   margin-top: 10px;
 }
+
+#cpu-item {
+  width: 100%;
+}

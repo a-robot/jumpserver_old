@@ -50,23 +50,25 @@
               </div>
             </div>
             <div class="host-detail-line">
-              <div class="host-detail-item">
+              <div id="cpu-item" class="host-detail-item">
                 <label>CPU：</label>
                 <span>{$ selected_asset.cpu $}</span>
               </div>
+            </div>
+            <div class="host-detail-line">
               <div class="host-detail-item">
                 <label>内存：</label>
-                <span>{$ selected_asset.memory $}</span>
+                <span>{$ selected_asset.memory $} G</span>
+              </div>
+              <div class="host-detail-item">
+                <label>带宽：</label>
+                <span></span>
               </div>
             </div>
             <div class="host-detail-line">
               <div class="host-detail-item">
                 <label>硬盘：</label>
                 <span>{$ selected_asset.disk $}</span>
-              </div>
-              <div class="host-detail-item">
-                <label>带宽：</label>
-                <span></span>
               </div>
             </div>
             <div class="host-detail-line connect-btn-line">

@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import datetime
+import json
 import traceback
 import xlrd
 import xlsxwriter
@@ -385,7 +386,7 @@ def asset_ansible_update(obj_list, name=''):
                     "mac": mac,
                     "cpu": cpu,
                     "memory": memory,
-                    "disk": disk,
+                    "disk": json.dumps(disk),
                     "sn": sn,
                     "system_type": system_type,
                     "system_version": system_version,
