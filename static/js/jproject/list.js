@@ -101,7 +101,7 @@ function gen_project_source(projects){
     var source = [];
     $.each(projects, function(_i, project){
         var project_name = project.name;
-        var tree_project = {title: project_name, folder: true};
+        var tree_project = {title: project_name, folder: true, expanded: true};
         tree_project.children = gen_app_moudule_source(project.app_modules);
         source.push(tree_project);
     });
@@ -112,7 +112,7 @@ function gen_project_source(projects){
 function gen_app_moudule_source(app_modules){
     var source = [];
     $.each(app_modules, function(_i, app_module){
-        var tree_app_module = {title: app_module.name, folder: true}
+        var tree_app_module = {title: app_module.name, folder: true, expanded: true}
         tree_app_module.children = gen_host_source(app_module.hosts);
         source.push(tree_app_module);
     });
