@@ -9,9 +9,10 @@ from django.db.models import AutoField
 
 from jasset.models import ASSET_STATUS, ASSET_TYPE, ASSET_ENV, IDC, AssetRecord, Asset, AssetGroup
 from jperm.ansible_api import MyRunner
-from jperm.perm_api import gen_resource
+from jperm.perm_api import gen_resource, get_group_user_perm
 from jumpserver.api import get_object, CRYPTOR, logger
 from jumpserver.templatetags.mytags import get_disk_info
+from juser.models import User
 
 
 def group_add_asset(group, asset_id=None, asset_ip=None):
@@ -403,3 +404,18 @@ def asset_ansible_update_all():
     name = '定时更新'
     asset_all = Asset.objects.all()
     asset_ansible_update(asset_all, name)
+
+
+def get_assets_by_username(username):
+    """
+    get assets those the user has permission to
+    """
+    asset_id_all = []
+    user = get_object(User, username=username)
+    asset_perm = get_group_user_perm(user) if user else {'asset': ''}
+    user_asset_perm = list(asset_perm['asset'].keys())
+    for asset in user_asset_perm:
+        asset_id_all.append(asset.id)
+
+    asset_find = Asset.objects.filter(pk__in=asset_id_all)
+    return asset_find

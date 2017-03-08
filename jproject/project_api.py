@@ -1,24 +1,30 @@
 from jasset.models import Asset, ASSET_TYPE, ASSET_STATUS, ASSET_ENV
 from jproject.models import Project, AppModule
+from jumpserver.api import require_role
 
 
-def get_app_modules(project_id):
+def get_app_modules(project_id, perm_asset_ids):
     ret = []
     project = Project.objects.filter(id=project_id)[0]
     app_modules = project.appmodule_set.all()
     for app_module in app_modules:
+        hosts = get_hosts(app_module.id, perm_asset_ids)
+        if len(hosts) == 0:
+            continue
+
         ret_app_module = {}
         ret_app_module['name'] = app_module.app_module_name
-        ret_app_module['hosts'] = get_hosts(app_module.id)
+        ret_app_module['hosts'] = hosts
         ret.append(ret_app_module)
 
     return ret
 
 
-def get_hosts(app_module_id):
+def get_hosts(app_module_id, perm_asset_ids):
     ret = []
     app_module = AppModule.objects.filter(id=app_module_id)[0]
-    assets = app_module.asset_set.all()
+    assets = app_module.asset_set.filter(pk__in=perm_asset_ids)
+
     for asset in assets:
         ret_asset = {
             'id': asset.id,

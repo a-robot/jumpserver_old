@@ -17,8 +17,7 @@ from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
-from django.http import HttpResponse, Http404
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, Http404, HttpResponseRedirect
 from django.shortcuts import render
 from django.template import RequestContext
 

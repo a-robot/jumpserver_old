@@ -1,12 +1,18 @@
 # coding:utf-8
 
 from django.db.models import Q
-from jasset.asset_api import *
-from jumpserver.api import *
-from jsetting.models import Setting
+from django.http import HttpResponse, HttpResponseRedirect
+from django.core.urlresolvers import reverse
+
+from jasset.asset_api import get_assets_by_username, db_update_group, asset_diff, \
+    db_asset_alert, write_excel, excel_to_db, asset_ansible_update, db_add_group
 from jasset.forms import AssetForm, IdcForm
-from jasset.models import Asset, IDC, AssetGroup, ASSET_TYPE, ASSET_STATUS
+from jasset.models import Asset, AssetRecord, IDC, AssetGroup, ASSET_TYPE, ASSET_STATUS
+from jlog.models import Log
 from jperm.perm_api import get_group_asset_perm, get_group_user_perm
+from jsetting.models import Setting
+from jumpserver.api import require_role, get_object, ServerError, my_render, CRYPTOR, pages
+from juser.models import User
 
 
 @require_role('admin')
@@ -270,6 +276,7 @@ def asset_list(request):
     asset_group_all = AssetGroup.objects.all()
     asset_types = ASSET_TYPE
     asset_status = ASSET_STATUS
+
     idc_name = request.GET.get('idc', '')
     group_name = request.GET.get('group', '')
     asset_type = request.GET.get('asset_type', '')
@@ -293,12 +300,9 @@ def asset_list(request):
             asset_find = Asset.objects.all()
         else:
             asset_id_all = []
+            asset_find = get_assets_by_username(username)
             user = get_object(User, username=username)
             asset_perm = get_group_user_perm(user) if user else {'asset': ''}
-            user_asset_perm = list(asset_perm['asset'].keys())
-            for asset in user_asset_perm:
-                asset_id_all.append(asset.id)
-            asset_find = Asset.objects.filter(pk__in=asset_id_all)
             asset_group_all = list(asset_perm['asset_group'])
 
     if idc_name:
