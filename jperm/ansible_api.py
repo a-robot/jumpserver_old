@@ -141,15 +141,6 @@ class Options(object):
 class MyRunner:
 
     def __init__(self, resource):
-        self.options = Options()
-        self.options.connection = 'ssh'  # Need a connection type 'smart' or 'ssh'
-        self.options.become = True
-        self.options.become_method = 'sudo'
-        self.options.become_user = 'root'
-
-        # Become Pass Needed if not logging in as user root (do not support now)
-        passwords = {'become_pass': ''}
-
         # Gets data from YAML/JSON files
         self.loader = DataLoader()
 
@@ -159,6 +150,17 @@ class MyRunner:
         # Set inventory, using most of above objects
         self.inventory = MyInventory(resource=resource, loader=self.loader, variable_manager=self.variable_manager)
         self.variable_manager.set_inventory(self.inventory)
+
+    def init_options(self, connection='ssh', become=True):
+        self.options = Options()
+        self.options.connection = 'ssh'  # Need a connection type 'smart' or 'ssh'
+        self.options.become = become
+        self.options.become_method = 'sudo'
+        self.options.become_user = 'root'
+
+    def init_task_queue_manager(self):
+        # Become Pass Needed if not logging in as user root (do not support now)
+        passwords = {'become_pass': ''}
 
         # set callback object
         self.results_callback = CallbackModule()
@@ -173,7 +175,9 @@ class MyRunner:
             stdout_callback=self.results_callback,
         )
 
-    def run(self, module_name='shell', module_args='', gather_facts=False, pattern='*'):
+    def run(self, module_name='shell', module_args='', gather_facts=False, pattern='*', become=True):
+        self.init_options(become=True)
+        self.init_task_queue_manager()
         play_source = dict(
             name='Ansible Play',
             hosts=pattern,
@@ -386,7 +390,7 @@ if __name__ == '__main__':
         }
     ]
     tqm = MyRunner(res)
-    #result = tqm.run(module_name='shell', module_args='ls /')
-    result = tqm.run(module_name='copy', module_args='src=/tmp/files.zip dest=/tmp')
-    print(json.dumps(result, indent=4))
-    #print(json.dumps(tqm.results, indent=4))
+    result = tqm.run(module_name='shell', module_args='ls /')
+    #result = tqm.run(module_name='copy', module_args='src=/tmp/files.zip dest=/tmp')
+    #print(json.dumps(result, indent=4))
+    print(json.dumps(tqm.results, indent=4))
