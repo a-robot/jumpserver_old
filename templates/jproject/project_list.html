@@ -58,7 +58,7 @@
             <div class="host-detail-line">
               <div class="host-detail-item">
                 <label>内存：</label>
-                <span>{$ selected_asset.memory $} G</span>
+                <span>{$ selected_asset.memory $} <span ng-if="selected_asset.memory">G</span></span>
               </div>
               <div class="host-detail-item">
                 <label>带宽：</label>

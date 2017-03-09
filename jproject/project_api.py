@@ -58,6 +58,9 @@ def get_hosts(app_module_id, perm_asset_ids):
 
 
 def disk_format(disk):
+    if not disk:
+        return disk
+
     disk_obj = json.loads(disk)
     ret = ''
     for name, size in disk_obj.items():
