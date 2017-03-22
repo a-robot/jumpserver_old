@@ -5,23 +5,20 @@ import sys
 import os
 import re
 import time
-import datetime
 import textwrap
 import getpass
-import readline
 import django
 import paramiko
 import errno
 import pyte
 import operator
 import struct, fcntl, signal, socket, select
-from io import open as copen
-import uuid
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'jumpserver.settings'
 if not django.get_version().startswith('1.6'):
     setup = django.setup()
 from django.contrib.sessions.models import Session
+from django.utils import timezone
 from jumpserver.api import ServerError, User, Asset, PermRole, AssetGroup, get_object, mkdir, get_asset_info
 from jumpserver.api import logger, Log, TtyLog, get_role_key, CRYPTOR, bash, get_tmp_dir
 from jperm.perm_api import gen_resource, get_group_asset_perm, get_group_user_perm, user_have_perm, PermRole
@@ -164,7 +161,7 @@ class Tty(object):
         记录用户的日志
         """
         tty_log_dir = os.path.join(LOG_DIR, 'tty')
-        date_today = datetime.datetime.now()
+        date_today = timezone.now()
         date_start = date_today.strftime('%Y%m%d')
         time_start = date_today.strftime('%H%M%S')
         today_connect_log_dir = os.path.join(tty_log_dir, date_start)
@@ -197,7 +194,7 @@ class Tty(object):
             log.pid = log.id  # 设置log id为websocket的id, 然后kill时干掉websocket
             log.save()
 
-        log_file_f.write('Start at %s\r\n' % datetime.datetime.now())
+        log_file_f.write('Start at %s\r\n' % timezone.now())
         return log_file_f, log_time_f, log
 
     def get_connect_info(self):
@@ -364,7 +361,7 @@ class SshTty(Tty):
                             self.vim_flag = False
                             data = self.deal_command(data)[0:200]
                             if data is not None:
-                                TtyLog(log=log, datetime=datetime.datetime.now(), cmd=data).save()
+                                TtyLog(log=log, datetime=timezone.now(), cmd=data).save()
                         data = ''
                         self.vim_data = ''
                         input_mode = False
@@ -375,13 +372,13 @@ class SshTty(Tty):
 
         finally:
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
-            log_file_f.write('End time is %s' % datetime.datetime.now())
+            log_file_f.write('End time is %s' % timezone.now())
             log_file_f.close()
             log_time_f.close()
             termlog.save()
             log.filename = termlog.filename
             log.is_finished = True
-            log.end_time = datetime.datetime.now()
+            log.end_time = timezone.now()
             log.save()
 
     def connect(self):

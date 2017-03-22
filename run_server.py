@@ -24,7 +24,9 @@ from tornado.websocket import WebSocketClosedError
 from tornado.options import define, options
 from pyinotify import WatchManager, ProcessEvent, IN_DELETE, IN_CREATE, IN_MODIFY, AsyncNotifier
 
-from connect import Tty, User, Asset, PermRole, logger, get_object, gen_resource
+from connect import Tty, User, logger, get_object, gen_resource
+from jasset.models import Asset
+from jperm.models import PermRole
 from connect import TtyLog, Log, Session, user_have_perm, get_group_user_perm, MyRunner, ExecLog
 
 
