@@ -18,7 +18,6 @@ def name_proc(request):
         user_active_num = User.objects.filter().count()
         host_total_num = Asset.objects.all().count()
         host_active_num = Asset.objects.filter(is_active=True).count()
-        request.session.set_expiry(3600)
 
         info_dic = {
             'session_user_id': user_id,
