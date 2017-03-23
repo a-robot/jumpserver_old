@@ -1,21 +1,20 @@
-from django.db.models import Q
-from django.http import HttpResponseBadRequest, HttpResponseNotAllowed
-from paramiko import SSHException
-from jperm.perm_api import *
+import re
+import os
 
-from juser.models import User, UserGroup
+from django.core.urlresolvers import reverse
+from django.db.models import Q
+from django.http import HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseRedirect, HttpResponse
+from paramiko import SSHException
+
 from jasset.models import Asset, AssetGroup
 from jperm.models import PermRole, PermRule, PermSudo, PermPush
-from jsetting.models import Setting
-
+from jperm.perm_api import user_have_perm
 from jperm.utils import gen_keys, trans_all
 from jperm.ansible_api import MyTask
-from jperm.perm_api import get_role_info, get_role_push_host
-from jumpserver.api import my_render, get_object, CRYPTOR
-import re
-
-# 设置PERM APP Log
-from jumpserver.api import logger
+from jperm.perm_api import get_role_info, get_role_push_host, gen_resource, get_group_user_perm
+from jsetting.models import Setting
+from jumpserver.api import my_render, get_object, CRYPTOR, require_role, logger, ServerError, pages, list_drop_str
+from juser.models import User, UserGroup
 
 
 @require_role('admin')
@@ -735,10 +734,12 @@ def perm_role_get(request):
         asset = get_object(Asset, id=asset_id)
         if asset:
             role = user_have_perm(request.user, asset=asset)
-            logger.debug('获取授权系统用户: ' + ','.join([i.name for i in role]))
+            username_list = [i.name for i in role]
+            logger.debug('获取授权系统用户: ' + ','.join(username_list))
             return HttpResponse(','.join([i.name for i in role]))
     else:
         roles = list(get_group_user_perm(request.user).get('role').keys())
-        return HttpResponse(','.join(i.name for i in roles))
+        username_list = [i.name for i in roles]
+        return HttpResponse(','.join(username_list))
 
     return HttpResponse('error')
