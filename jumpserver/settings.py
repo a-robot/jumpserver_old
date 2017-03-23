@@ -207,3 +207,6 @@ else:
 BRAND = config.get('brand', 'brand')
 LOGO_128 = config.get('brand', 'logo_128')
 COPYRIGHT = config.get('brand', 'copyright')
+
+# ========== guacamole =========
+GUAC_WEB_URL = config.get('guacamole', 'web_url')

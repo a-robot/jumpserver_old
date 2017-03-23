@@ -291,6 +291,72 @@ class ExecHandler(tornado.websocket.WebSocketHandler):
         logger.debug('关闭web_exec请求')
 
 
+class DesktopHandler(tornado.websocket.WebSocketHandler):
+    clients = []
+
+    def __init__(self, *args, **kwargs):
+        self.term = None
+        self.log_file_f = None
+        self.log = None
+        self.id = 0
+        self.user = None
+        self.channel = None
+        super(DesktopHandler, self).__init__(*args, **kwargs)
+
+    def check_origin(self, origin):
+        return True
+
+    @django_request_support
+    @require_auth('user')
+    def open(self):
+        logger.debug('Websocket: Open windows desktop request')
+        role_name = self.get_argument('role', 'sb')
+        asset_id = self.get_argument('id', 9999)
+        asset = get_object(Asset, id=asset_id)
+        if asset:
+            roles = user_have_perm(self.user, asset)
+            logger.debug(roles)
+            logger.debug('系统用户: %s' % role_name)
+            login_role = ''
+            for role in roles:
+                if role.name == role_name:
+                    login_role = role
+                    break
+            if not login_role:
+                logger.warning('Websocket: Not that Role %s for Host: %s User: %s ' % (role_name, asset.hostname,
+                                                                                       self.user.username))
+                self.close()
+                return
+        else:
+            logger.warning('Websocket: No that Host: %s User: %s ' % (asset_id, self.user.username))
+            self.close()
+            return
+        remote_ip = self.request.headers.get("X-Real-IP")
+        if not remote_ip:
+            remote_ip = self.request.remote_ip
+        date_today = timezone.now()
+        pid = 0
+        self.log = Log(user=self.user.username, host=asset.hostname, remote_ip=remote_ip, login_type='rdp',
+                       log_path='', start_time=date_today, pid=pid)
+        logger.debug('Websocket: request web terminal Host: %s User: %s Role: %s' % (asset.hostname, self.user.username,
+                                                                                     login_role.name))
+
+    def on_message(self, message):
+        pass
+
+    def on_close(self):
+        logger.debug('Websocket: Close windows desktop request')
+        if self in DesktopHandler.clients:
+            DesktopHandler.clients.remove(self)
+        try:
+            self.log.is_finished = True
+            self.log.end_time = timezone.now()
+            self.log.save()
+            self.close()
+        except AttributeError:
+            pass
+
+
 class WebTerminalHandler(tornado.websocket.WebSocketHandler):
     clients = []
     tasks = []
@@ -390,7 +456,6 @@ class WebTerminalHandler(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         logger.debug('Websocket: Close request')
-        print(self.termlog.CMD)
         self.termlog.save()
         if self in WebTerminalHandler.clients:
             WebTerminalHandler.clients.remove(self)
@@ -475,6 +540,7 @@ def main():
         [
             (r'/ws/monitor', MonitorHandler),
             (r'/ws/terminal', WebTerminalHandler),
+            (r'/ws/desktop', DesktopHandler),
             (r'/ws/kill', WebTerminalKillHandler),
             (r'/ws/exec', ExecHandler),
             (r"/static/(.*)", tornado.web.StaticFileHandler,

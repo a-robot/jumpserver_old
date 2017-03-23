@@ -305,6 +305,10 @@ def web_terminal(request):
     asset_id = request.GET.get('id')
     role_name = request.GET.get('role')
     asset = get_object(Asset, id=asset_id)
-    if asset:
-        hostname = asset.hostname
-    return render(request, 'jlog/web_terminal.html', locals())
+    if asset.system_type.lower().startswith('win'):
+        desktop_url = '%s/guacamole/#/client/%s' % (settings.GUAC_WEB_URL, asset.number)
+        return render(request, 'jlog/web_desktop.html', locals())
+    else:
+        if asset:
+            hostname = asset.hostname
+        return render(request, 'jlog/web_terminal.html', locals())
