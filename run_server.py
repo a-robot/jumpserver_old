@@ -506,25 +506,6 @@ class WebTerminalHandler(tornado.websocket.WebSocketHandler):
             pass
 
 
-class Application(tornado.web.Application):
-    def __init__(self):
-        handlers = [
-            (r'/monitor', MonitorHandler),
-            (r'/terminal', WebTerminalHandler),
-            (r'/kill', WebTerminalKillHandler),
-            (r'/exec', ExecHandler),
-        ]
-
-        setting = {
-            'cookie_secret': 'DFksdfsasdfkasdfFKwlwfsdfsa1204mx',
-            'template_path': os.path.join(os.path.dirname(__file__), 'templates'),
-            'static_path': os.path.join(os.path.dirname(__file__), 'static'),
-            'debug': False,
-        }
-
-        tornado.web.Application.__init__(self, handlers, **setting)
-
-
 def main():
     from django.core.wsgi import get_wsgi_application
     import tornado.wsgi
@@ -532,9 +513,8 @@ def main():
     container = tornado.wsgi.WSGIContainer(wsgi_app)
     setting = {
         'cookie_secret': 'DFksdfsasdfkasdfFKwlwfsdfsa1204mx',
-        'template_path': os.path.join(os.path.dirname(__file__), 'templates'),
-        'static_path': os.path.join(os.path.dirname(__file__), 'static'),
-        'debug': False,
+        'debug': True,
+        'autoreload': True
     }
     tornado_app = tornado.web.Application(
         [
@@ -543,8 +523,6 @@ def main():
             (r'/ws/desktop', DesktopHandler),
             (r'/ws/kill', WebTerminalKillHandler),
             (r'/ws/exec', ExecHandler),
-            (r"/static/(.*)", tornado.web.StaticFileHandler,
-             dict(path=os.path.join(os.path.dirname(__file__), "static"))),
             ('.*', tornado.web.FallbackHandler, dict(fallback=container)),
         ], **setting)
 

@@ -1,5 +1,7 @@
 from django.conf.urls import include, url
 from django.contrib import admin
+from django.conf.urls.static import static
+from django.conf import settings
 
 from jumpserver.views import index, skin_config, jmp_login, jmp_logout, exec_cmd, upload, download, web_terminal
 
@@ -20,4 +22,4 @@ urlpatterns = [
     url(r'^jlog/', include('jlog.urls')),
     url(r'^jperm/', include('jperm.urls')),
     url(r'^jproject/', include('jproject.urls')),
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 import os
 import configparser
 
+from django.contrib import admin
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -114,13 +116,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.10/howto/static-files/
-
-STATIC_URL = '/static/'
-
-
 # ----------------- additional config ---------------- #
 # ========== cron job =========
 CRONJOBS = [
@@ -128,9 +123,14 @@ CRONJOBS = [
     ('*/10 * * * *', 'jlog.log_api.kill_invalid_connection'),
 ]
 
-# ========== static dir =========
+# ========== static =========
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
+admin_static = os.path.join(os.path.dirname(admin.__file__), "static")
+admin_static = os.path.join(admin_static, 'admin')
+os.system('cp -r %s %s' % (admin_static, STATIC_ROOT))
 STATICFILES_DIRS = (
-    os.path.join(BASE_DIR, "static"),
+    #os.path.join(BASE_DIR, "static"),
 )
 
 # ======== replace default user model ========
@@ -210,3 +210,6 @@ COPYRIGHT = config.get('brand', 'copyright')
 
 # ========== guacamole =========
 GUAC_WEB_URL = config.get('guacamole', 'web_url')
+
+# ========== session age ========
+SESSION_COOKIE_AGE = 12 * 3600
