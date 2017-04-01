@@ -28,6 +28,7 @@ def name_proc(request):
             'host_active_num': host_active_num,
         }
 
+    request.session.set_expiry(settings.SESSION_COOKIE_AGE)
     info_dic['brand'] = settings.BRAND
     info_dic['logo_128'] = settings.LOGO_128
     info_dic['copyright'] = settings.COPYRIGHT
