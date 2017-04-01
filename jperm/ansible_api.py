@@ -345,7 +345,7 @@ class MyTask(MyRunner):
         sudo_j2 = get_template('jperm/role_sudo.j2')
         sudo_content = sudo_j2.render(Context({"sudo_alias": sudo_alias, "sudo_user": sudo_user}))
         sudo_file = NamedTemporaryFile(delete=False)
-        sudo_file.write(sudo_content)
+        sudo_file.write(sudo_content.encode())
         sudo_file.close()
         return sudo_file.name
 
