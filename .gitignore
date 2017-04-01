@@ -45,3 +45,4 @@ jumpserver.conf
 nohup.out
 tmp
 migrations
+static/admin
