@@ -184,7 +184,7 @@
 
             return tag[0];
         } ,
-            title:'Jumpserver实时监控 '+' 登录用户名: '+'<span class="text-info">'+username+'</span>'+' 登录主机: '+'<span class="text-info">'+ip,
+            title:'实时监控 '+' 登录用户名: '+'<span class="text-info">'+username+'</span>'+' 登录主机: '+'<span class="text-info">'+ip,
             onhide:function(){
                 socket.close();
         }});
@@ -203,7 +203,7 @@
            var div_username = ' 用户名: '+'<span class="text-info">'+username+'' + '</span>';
            var div_ip = ' 主机: '+'<span class="text-info">' + ip + '</span>';
            var div_time = ' 开始时间: ' + '<span class="text-info">'+start_time +'</span>' + '</span>';
-           var title = 'JumpServer命令统计 '+ div_username + div_ip + div_time;
+           var title = '命令统计 '+ div_username + div_ip + div_time;
             $.ajax({url:url,
                     success:function(data){
                         var tag = $('<div style="height: 500px;overflow: auto;background-color: rgba(0, 0, 0, 0);"></div>').html(data.replace(/\n/g,"<br />"));
