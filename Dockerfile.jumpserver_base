@@ -1,0 +1,9 @@
+FROM python:3.5-onbuild
+MAINTAINER choldrim <choldrim@foxmail.com>
+
+ADD http://mirrors.163.com/.help/sources.list.jessie /etc/apt/sources.list
+
+RUN apt-get update && \
+    yes | apt-get install --no-install-recommends sshpass cron libssl-dev libffi-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

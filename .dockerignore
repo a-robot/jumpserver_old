@@ -1,0 +1,7 @@
+docs
+keys
+logs
+.git*
+__pycache__
+db.sqlite3
+jumpserver.conf
