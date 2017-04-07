@@ -59,16 +59,16 @@ function openTerminal(options) {
         rowHeight = localStorage.getItem('term-row');
         colWidth = localStorage.getItem('term-col');
     } catch (err) {
-        rowHeight = 35;
-        colWidth = 100
+        rowHeight = 50;
+        colWidth = 200
     }
     if (rowHeight) {
     } else {
-        rowHeight = 35
+        rowHeight = 50
     }
     if (colWidth) {
     } else {
-        colWidth = 100
+        colWidth = 200
     }
 
     var term = new Terminal({
@@ -133,8 +133,8 @@ $(document).ready(function () {
         $('#term-row')[0].value = localStorage.getItem('term-row');
         $('#term-col')[0].value = localStorage.getItem('term-col');
     } catch (err) {
-        $('#term-row')[0].value = 35;
-        $('#term-col')[0].value = 100;
+        $('#term-row')[0].value = 50;
+        $('#term-col')[0].value = 200;
     }
     $('#col-row').click(function () {
         var col = $('#term-col').val();
